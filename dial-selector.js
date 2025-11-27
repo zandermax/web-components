@@ -3,11 +3,16 @@ const style = document.createElement('style');
 style.textContent = `
 dial-selector {
   --color-ink: #f4f4f4;
-  --color-accent: #f13b3b;
+  --color-selection: #f13b3b;
   --color-line: #c7c2b5;
   --color-indicator: #f13b3b;
   --shadow: 0;
   --label-radius: 150px;
+  /* Line styling variables */
+  --line-stroke-width: 2;
+  --line-opacity-inactive: 0.4;
+  --line-opacity-active: 0.8;
+  --line-transition: opacity 0.3s ease, stroke 0.3s ease;
   display: block;
   font-family: 'IBM Plex Mono', 'Courier New', monospace;
 }
@@ -42,10 +47,11 @@ dial-selector .selector {
 }
 
 dial-selector .label-column {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 20px;
   justify-content: center;
+  height: 320px;
 }
 
 dial-selector .label-column.left {
@@ -79,7 +85,7 @@ dial-selector .indicator {
   position: absolute;
   width: 10px;
   height: 60px;
-  background: var(--color-indicator);
+  background: var(--indicator-gradient, var(--color-indicator));
   border-radius: 5px;
   top: 18px;
   left: 50%;
@@ -109,11 +115,12 @@ dial-selector .dial-label {
   cursor: pointer;
   user-select: none;
   padding: 8px 12px;
-  position: relative;
+  position: absolute;
+  transform: translateY(-50%);
 }
 
 dial-selector .dial-label.active {
-  color: var(--color-accent);
+  color: var(--color-selection);
 }
 
 dial-selector #lineContainer {
@@ -121,6 +128,10 @@ dial-selector #lineContainer {
   inset: 0;
   pointer-events: none;
   overflow: visible;
+}
+
+dial-selector .spoke-line {
+  transition: var(--line-transition, opacity 0.3s ease, stroke 0.3s ease);
 }
 
 dial-selector .advance {
@@ -163,6 +174,61 @@ if (!document.getElementById('dial-selector-styles')) {
   document.head.appendChild(style);
 }
 
+// Constants
+const DEFAULT_OPTIONS = ['PHONO-2', 'PHONO-1', 'TUNER', 'AUX', 'CD', 'TAPE', 'STREAM', 'TV'];
+const DEFAULT_TITLE = 'Input Selector';
+
+// Arc angles for label positioning
+const RIGHT_ARC_START = -45;
+const RIGHT_ARC_END = 45;
+const LEFT_ARC_START = 135;
+const LEFT_ARC_END = 225;
+
+// Knob and dial dimensions
+const KNOB_WRAP_SIZE = 320;
+const KNOB_SIZE = 180;
+const KNOB_CENTER = KNOB_WRAP_SIZE / 2; // 160
+const KNOB_RADIUS = 90;
+const LABEL_COLUMN_HEIGHT = 320;
+const LABEL_RADIUS = 150;
+const LABEL_VERTICAL_OFFSET_SCALE = 140;
+
+// Line dimensions
+const HORIZONTAL_LINE_LENGTH = 100;
+const MAX_SPOKE_LENGTH = 80;
+const HIT_AREA_STROKE_WIDTH = 20;
+const DEFAULT_LINE_STROKE_WIDTH = 2;
+const HORIZONTAL_LINE_END_OFFSET = 10;
+
+// Opacity values
+const LINE_OPACITY_INACTIVE = 0.4;
+const LINE_OPACITY_ACTIVE = 0.8;
+
+// Indicator dimensions
+const INDICATOR_WIDTH = 10;
+const INDICATOR_HEIGHT = 60;
+const INDICATOR_TOP_OFFSET = 18;
+const INDICATOR_TRANSFORM_ORIGIN_Y = 72;
+
+// Animation and timing
+const TRANSITION_DELAY = 0.125;
+const INITIALIZATION_DELAY = 100;
+
+// Angle calculation threshold
+const NEARLY_HORIZONTAL_THRESHOLD = 0.0001;
+const FULL_CIRCLE_DEGREES = 360;
+
+// Rainbow gradient colors
+const RAINBOW_COLORS = [
+  '#ff0000', // Red
+  '#ff7f00', // Orange
+  '#ffff00', // Yellow
+  '#00ff00', // Green
+  '#0000ff', // Blue
+  '#4b0082', // Indigo
+  '#9400d3', // Violet
+];
+
 class DialSelector extends HTMLElement {
   constructor() {
     super();
@@ -172,6 +238,7 @@ class DialSelector extends HTMLElement {
     this.isInitialized = false;
     this.labels = [];
     this.lines = [];
+    this.hitAreas = [];
     this.spokeAngles = [];
     this.rightCount = 0;
     this.leftCount = 0;
@@ -179,17 +246,27 @@ class DialSelector extends HTMLElement {
   }
 
   static get observedAttributes() {
-    return ['color-indicator', 'options', 'title', 'onchange'];
+    return [
+      'color-indicator',
+      'color-selection',
+      'options',
+      'title',
+      'onchange',
+      'indicator-rainbow',
+      'indicator-gradient',
+      'line-thickness',
+    ];
   }
 
   connectedCallback() {
     // Parse options from attribute or use default
     const optionsAttr = this.getAttribute('options');
-    this.OPTIONS = optionsAttr
-      ? optionsAttr.split(',').map((opt) => opt.trim())
-      : ['PHONO-2', 'PHONO-1', 'TUNER', 'AUX', 'CD', 'TAPE', 'STREAM', 'TV'];
+    this.OPTIONS = optionsAttr ? optionsAttr.split(',').map((opt) => opt.trim()) : DEFAULT_OPTIONS;
 
     this.updateIndicatorColor();
+    this.updateIndicatorGradient();
+    this.updateSelectionColor();
+    this.updateLineThickness();
     this.buildDOM();
     this.calculateAngles();
     this.createLabelsAndLines();
@@ -197,32 +274,68 @@ class DialSelector extends HTMLElement {
     setTimeout(() => {
       this.updateLines();
       this.updateSelector();
-    }, 100);
+    }, INITIALIZATION_DELAY);
 
     window.addEventListener('resize', () => this.updateLines());
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
-    if (name === 'color-indicator') {
-      this.updateIndicatorColor();
-    } else if (name === 'options' && this.isInitialized) {
-      // Rebuild if options change
-      this.OPTIONS = newValue.split(',').map((opt) => opt.trim());
-      this.labels = [];
-      this.lines = [];
-      this.spokeAngles = [];
-      this.currentIndex = 0;
-      this.previousIndex = -1;
-      this.isInitialized = false;
-      this.calculateAngles();
-      this.createLabelsAndLines();
-      setTimeout(() => {
-        this.updateLines();
-        this.updateSelector();
-      }, 100);
-    } else if (name === 'title' && this.isInitialized) {
-      const titleEl = this.querySelector('h1');
-      if (titleEl) titleEl.textContent = newValue || 'Input Selector';
+    this.handleAttributeChange({ name, oldValue, newValue });
+  }
+
+  handleAttributeChange({ name, oldValue, newValue }) {
+    switch (name) {
+      case 'color-indicator':
+        this.updateIndicatorColor();
+        break;
+
+      case 'indicator-rainbow':
+      case 'indicator-gradient':
+        this.updateIndicatorGradient();
+        break;
+
+      case 'color-selection':
+        this.updateSelectionColor();
+        break;
+
+      case 'line-thickness':
+        this.updateLineThickness();
+        break;
+
+      case 'options':
+        if (this.isInitialized) {
+          // Rebuild if options change
+          this.OPTIONS = newValue.split(',').map((opt) => opt.trim());
+          this.labels = [];
+          this.lines = [];
+          this.spokeAngles = [];
+          this.currentIndex = 0;
+          this.previousIndex = -1;
+          this.isInitialized = false;
+          this.calculateAngles();
+          this.createLabelsAndLines();
+          setTimeout(() => {
+            this.updateLines();
+            this.updateSelector();
+          }, INITIALIZATION_DELAY);
+        }
+        break;
+
+      case 'title':
+        if (this.isInitialized) {
+          const titleEl = this.querySelector('h1');
+          if (titleEl) titleEl.textContent = newValue || DEFAULT_TITLE;
+        }
+        break;
+
+      case 'onchange':
+        // onchange attribute changes are handled automatically
+        // No action needed here
+        break;
+
+      default:
+        // Unknown attribute, ignore
+        break;
     }
   }
 
@@ -233,8 +346,62 @@ class DialSelector extends HTMLElement {
     }
   }
 
+  updateIndicatorGradient() {
+    // Check if custom gradient is provided
+    const gradientColors = this.getAttribute('indicator-gradient');
+
+    if (gradientColors) {
+      // Parse comma-separated colors and create gradient
+      const colors = gradientColors.split(',').map((color) => color.trim());
+      const gradient = this.createGradientFromColors(colors);
+      this.style.setProperty('--indicator-gradient', gradient);
+    } else if (this.hasAttribute('indicator-rainbow')) {
+      // Default rainbow gradient if indicator-rainbow is set
+      const rainbowColors = RAINBOW_COLORS;
+      const gradient = this.createGradientFromColors(rainbowColors);
+      this.style.setProperty('--indicator-gradient', gradient);
+    } else {
+      // Remove the property so CSS fallback to --color-indicator works
+      this.style.removeProperty('--indicator-gradient');
+    }
+  }
+
+  createGradientFromColors(colors) {
+    if (colors.length === 0) return 'none';
+    if (colors.length === 1) {
+      return `linear-gradient(to bottom, ${colors[0]})`;
+    }
+
+    // Create gradient with evenly distributed color stops
+    const stops = colors
+      .map((color, index) => {
+        const percentage = (index / (colors.length - 1)) * 100;
+        return `${color} ${percentage}%`;
+      })
+      .join(', ');
+
+    return `linear-gradient(to bottom, ${stops})`;
+  }
+
+  updateSelectionColor() {
+    const colorSelection = this.getAttribute('color-selection');
+    if (colorSelection) {
+      this.style.setProperty('--color-selection', colorSelection);
+    }
+  }
+
+  updateLineThickness() {
+    const lineThickness = this.getAttribute('line-thickness');
+    if (lineThickness) {
+      this.style.setProperty('--line-stroke-width', lineThickness);
+    } else {
+      // Reset to default if attribute is removed
+      this.style.removeProperty('--line-stroke-width');
+    }
+  }
+
   buildDOM() {
-    const title = this.getAttribute('title') || 'Input Selector';
+    const title = this.getAttribute('title') || DEFAULT_TITLE;
     this.innerHTML = `
 			<div class="panel">
 				<h1>${title}</h1>
@@ -262,24 +429,19 @@ class DialSelector extends HTMLElement {
   }
 
   calculateAngles() {
-    const rightArcStart = -45;
-    const rightArcEnd = 45;
-    const leftArcStart = 135;
-    const leftArcEnd = 225;
-
     this.halfPoint = Math.ceil(this.OPTIONS.length / 2);
     this.rightCount = this.OPTIONS.length - this.halfPoint;
     this.leftCount = this.halfPoint;
 
     // Generate angles for right side
     for (let i = 0; i < this.rightCount; i++) {
-      const angle = rightArcStart + ((rightArcEnd - rightArcStart) * i) / (this.rightCount - 1);
+      const angle = RIGHT_ARC_START + ((RIGHT_ARC_END - RIGHT_ARC_START) * i) / (this.rightCount - 1);
       this.spokeAngles.push(angle);
     }
 
     // Generate angles for left side
     for (let i = 0; i < this.leftCount; i++) {
-      const angle = leftArcStart + ((leftArcEnd - leftArcStart) * i) / (this.leftCount - 1);
+      const angle = LEFT_ARC_START + ((LEFT_ARC_END - LEFT_ARC_START) * i) / (this.leftCount - 1);
       this.spokeAngles.push(angle);
     }
   }
@@ -294,17 +456,35 @@ class DialSelector extends HTMLElement {
     if (leftColumn) leftColumn.innerHTML = '';
     if (rightColumn) rightColumn.innerHTML = '';
     if (lineContainer) lineContainer.innerHTML = '';
+    this.hitAreas = [];
 
     this.OPTIONS.forEach((option, index) => {
       const isLeft = index >= this.rightCount;
       const container = isLeft ? leftColumn : rightColumn;
+      const angle = this.spokeAngles[index];
+      const angleRad = (angle * Math.PI) / 180;
+
+      // Calculate vertical position based on angle
+      // The knob center is at 50% of the column height
+      // We want labels positioned along the vertical arc where the indicator points
+      const columnCenter = LABEL_COLUMN_HEIGHT / 2;
+      const verticalOffset = Math.sin(angleRad) * LABEL_VERTICAL_OFFSET_SCALE;
+      const topPosition = columnCenter + verticalOffset;
 
       // Create label
       const label = document.createElement('label');
       label.className = 'dial-label';
       label.textContent = option;
       label.dataset.index = index;
-      label.dataset.angle = this.spokeAngles[index];
+      label.dataset.angle = angle;
+
+      // Position label vertically based on angle
+      label.style.top = `${topPosition}px`;
+      if (isLeft) {
+        label.style.right = '0';
+      } else {
+        label.style.left = '0';
+      }
 
       label.addEventListener('click', () => {
         this.currentIndex = index;
@@ -312,23 +492,44 @@ class DialSelector extends HTMLElement {
       });
 
       // Append to containers
-      if (isLeft) {
-        container.insertBefore(label, container.firstChild);
-      } else {
-        container.appendChild(label);
-      }
+      if (container) container.appendChild(label);
       this.labels.push(label);
 
-      // Create line (spoke + horizontal)
+      // Create invisible wider hit area overlay for easier clicking (Fitt's Law)
+      const hitArea = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      hitArea.setAttribute('class', 'spoke-line-hit-area');
+      hitArea.setAttribute('fill', 'none');
+      hitArea.setAttribute('stroke', 'transparent');
+      hitArea.setAttribute('stroke-width', HIT_AREA_STROKE_WIDTH.toString());
+      hitArea.setAttribute('stroke-linejoin', 'miter');
+      hitArea.setAttribute('pointer-events', 'auto');
+      hitArea.style.cursor = 'pointer';
+      hitArea.dataset.index = index;
+      // Initialize with empty points - will be set in updateLines()
+      hitArea.setAttribute('points', '');
+
+      // Make hit area clickable
+      hitArea.addEventListener('click', () => {
+        this.currentIndex = index;
+        this.updateSelector();
+      });
+
+      // Create visible line (spoke + horizontal)
       const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      line.setAttribute('class', 'spoke-line');
       line.setAttribute('fill', 'none');
       line.setAttribute('stroke', 'var(--color-ink)');
-      line.setAttribute('stroke-width', '2');
-      line.setAttribute('opacity', '0.4');
+      line.setAttribute('stroke-width', `var(--line-stroke-width, ${DEFAULT_LINE_STROKE_WIDTH})`);
+      line.setAttribute('opacity', `var(--line-opacity-inactive, ${LINE_OPACITY_INACTIVE})`);
       line.setAttribute('stroke-linejoin', 'miter');
+      line.setAttribute('pointer-events', 'none'); // Let clicks pass through to hit area
       line.dataset.index = index;
+
+      // Append hit area first (behind), then line (on top)
+      lineContainer.appendChild(hitArea);
       lineContainer.appendChild(line);
       this.lines.push(line);
+      this.hitAreas.push(hitArea);
     });
 
     if (advanceButton) {
@@ -343,10 +544,10 @@ class DialSelector extends HTMLElement {
     const knobWrap = this.querySelector('.knob-wrap');
     if (!knobWrap) return;
 
-    const centerX = 160;
-    const centerY = 160;
-    const knobRadius = 90;
-    const horizontalLength = 100;
+    const centerX = KNOB_CENTER;
+    const centerY = KNOB_CENTER;
+    const knobRadius = KNOB_RADIUS;
+    const horizontalLength = HORIZONTAL_LINE_LENGTH;
 
     this.labels.forEach((label, index) => {
       const labelRect = label.getBoundingClientRect();
@@ -360,23 +561,57 @@ class DialSelector extends HTMLElement {
       const labelX = isLeft ? labelRect.right - knobWrapRect.left : labelRect.left - knobWrapRect.left;
       const labelY = labelRect.top + labelRect.height / 2 - knobWrapRect.top;
 
-      // Horizontal line endpoint (100px toward knob)
-      const horizontalEndX = isLeft ? labelX + horizontalLength : labelX - horizontalLength;
-      const horizontalEndY = labelY;
-
       // Spoke start point at knob edge
       const spokeStartX = centerX + Math.cos(angleRad) * knobRadius;
       const spokeStartY = centerY + Math.sin(angleRad) * knobRadius;
 
-      // Calculate where the spoke meets the horizontal line
-      const dy = labelY - centerY;
-      const dx = dy / Math.tan(angleRad);
-      const intersectX = centerX + dx;
-      const intersectY = labelY;
+      // Calculate where the spoke (extending from knob edge at angle) meets the horizontal line
+      // The spoke extends from spokeStart outward at the given angle
+      // We need to find where it intersects with the horizontal line at labelY
+      // But limit the spoke length so horizontal spokes don't extend too far
+      const maxSpokeLength = MAX_SPOKE_LENGTH;
+
+      let intersectX, intersectY;
+
+      if (Math.abs(Math.sin(angleRad)) < NEARLY_HORIZONTAL_THRESHOLD) {
+        // Nearly horizontal spoke - limit the extension
+        const maxExtension = isLeft ? -maxSpokeLength : maxSpokeLength;
+        intersectX = spokeStartX + maxExtension;
+        intersectY = labelY;
+      } else {
+        // Parametric form: x = spokeStartX + t*cos(angle), y = spokeStartY + t*sin(angle)
+        // We want y = labelY, so: t = (labelY - spokeStartY) / sin(angle)
+        const t = (labelY - spokeStartY) / Math.sin(angleRad);
+
+        // Limit the spoke length if it would extend too far
+        const spokeLength = Math.abs(t);
+        if (spokeLength > maxSpokeLength) {
+          // Cap the spoke at max length
+          const limitedT = t > 0 ? maxSpokeLength : -maxSpokeLength;
+          intersectX = spokeStartX + limitedT * Math.cos(angleRad);
+          // Keep intersection on the horizontal line at labelY
+          intersectY = labelY;
+        } else {
+          intersectX = spokeStartX + t * Math.cos(angleRad);
+          intersectY = labelY;
+        }
+      }
+
+      // Horizontal line should extend from label to intersection
+      // But we want it to stop a bit before the intersection for visual clarity
+      const horizontalEndX = isLeft
+        ? Math.min(intersectX - HORIZONTAL_LINE_END_OFFSET, labelX + horizontalLength)
+        : Math.max(intersectX + HORIZONTAL_LINE_END_OFFSET, labelX - horizontalLength);
+      const horizontalEndY = labelY;
 
       // Create polyline: label -> horizontal end -> intersection -> spoke start
       const points = `${labelX},${labelY} ${horizontalEndX},${horizontalEndY} ${intersectX},${intersectY} ${spokeStartX},${spokeStartY}`;
       this.lines[index].setAttribute('points', points);
+
+      // Update hit area with same points
+      if (this.hitAreas[index]) {
+        this.hitAreas[index].setAttribute('points', points);
+      }
     });
   }
 
@@ -391,14 +626,14 @@ class DialSelector extends HTMLElement {
       this.previousIndex = this.currentIndex;
     } else {
       // Calculate the shortest angular path to the target
-      let normalizedCurrent = ((this.currentAngle % 360) + 360) % 360;
-      let normalizedTarget = ((targetAngle % 360) + 360) % 360;
+      let normalizedCurrent = ((this.currentAngle % FULL_CIRCLE_DEGREES) + FULL_CIRCLE_DEGREES) % FULL_CIRCLE_DEGREES;
+      let normalizedTarget = ((targetAngle % FULL_CIRCLE_DEGREES) + FULL_CIRCLE_DEGREES) % FULL_CIRCLE_DEGREES;
 
       let forwardDist = normalizedTarget - normalizedCurrent;
-      if (forwardDist < 0) forwardDist += 360;
+      if (forwardDist < 0) forwardDist += FULL_CIRCLE_DEGREES;
 
       let backwardDist = normalizedCurrent - normalizedTarget;
-      if (backwardDist < 0) backwardDist += 360;
+      if (backwardDist < 0) backwardDist += FULL_CIRCLE_DEGREES;
 
       if (backwardDist < forwardDist) {
         this.currentAngle = this.currentAngle - backwardDist;
@@ -413,14 +648,17 @@ class DialSelector extends HTMLElement {
     }
 
     this.labels.forEach((label, index) => {
+      const line = this.lines[index];
       if (index === this.currentIndex) {
         label.classList.add('active');
-        this.lines[index].setAttribute('opacity', '0.8');
-        this.lines[index].setAttribute('stroke', 'var(--color-accent)');
+        line.classList.add('active');
+        line.setAttribute('opacity', `var(--line-opacity-active, ${LINE_OPACITY_ACTIVE})`);
+        line.setAttribute('stroke', 'var(--color-selection)');
       } else {
         label.classList.remove('active');
-        this.lines[index].setAttribute('opacity', '0.4');
-        this.lines[index].setAttribute('stroke', 'var(--color-ink)');
+        line.classList.remove('active');
+        line.setAttribute('opacity', `var(--line-opacity-inactive, ${LINE_OPACITY_INACTIVE})`);
+        line.setAttribute('stroke', 'var(--color-ink)');
       }
     });
 
