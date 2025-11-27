@@ -1,4 +1,3 @@
-// Inject CSS into the document
 const style = document.createElement('style');
 style.textContent = `
 dial-selector {
@@ -13,6 +12,15 @@ dial-selector {
   --line-opacity-inactive: 0.4;
   --line-opacity-active: 0.8;
   --line-transition: opacity 0.3s ease, stroke 0.3s ease;
+  /* Indicator styling variables */
+  --indicator-length: 60px;
+  /* Knob circle styling variables */
+  --radius-outer: 90px;
+  --width-outer-circle: 4px;
+  --color-outer-circle: var(--color-ink);
+  --radius-inner: 72px;
+  --width-inner-circle: 2px;
+  --color-inner-circle: var(--color-ink);
   display: block;
   font-family: 'IBM Plex Mono', 'Courier New', monospace;
 }
@@ -72,9 +80,9 @@ dial-selector .knob-wrap {
 
 dial-selector .knob {
   position: relative;
-  width: 180px;
-  height: 180px;
-  border: 4px solid var(--color-ink);
+  width: calc(var(--radius-outer) * 2);
+  height: calc(var(--radius-outer) * 2);
+  border: var(--width-outer-circle) solid var(--color-outer-circle);
   border-radius: 50%;
   background: #11161c;
   box-shadow: var(--shadow);
@@ -84,12 +92,12 @@ dial-selector .knob {
 dial-selector .indicator {
   position: absolute;
   width: 10px;
-  height: 60px;
+  height: var(--indicator-length, 60px);
   background: var(--indicator-gradient, var(--color-indicator));
   border-radius: 5px;
-  top: 18px;
+  top: calc(50% - var(--indicator-length, 60px));
   left: 50%;
-  transform-origin: 50% 72px;
+  transform-origin: 50% 100%;
   transform: translateX(-50%) rotate(calc(90deg + var(--indicator-angle)));
   transition: transform 0.25s ease-in;
   transition-delay: 0.125s;
@@ -98,8 +106,8 @@ dial-selector .indicator {
 dial-selector .knob::before {
   content: '';
   position: absolute;
-  inset: 18px;
-  border: 2px solid var(--color-ink);
+  inset: calc(var(--radius-outer) - var(--radius-inner));
+  border: var(--width-inner-circle) solid var(--color-inner-circle);
   border-radius: 50%;
   opacity: 0.6;
 }
@@ -255,6 +263,13 @@ class DialSelector extends HTMLElement {
       'indicator-rainbow',
       'indicator-gradient',
       'line-thickness',
+      'length-indicator',
+      'radius-inner',
+      'color-inner-circle',
+      'color-outer-circle',
+      'width-inner-circle',
+      'radius-outer',
+      'width-outer-circle',
     ];
   }
 
@@ -267,6 +282,8 @@ class DialSelector extends HTMLElement {
     this.updateIndicatorGradient();
     this.updateSelectionColor();
     this.updateLineThickness();
+    this.updateIndicatorLength();
+    this.updateKnobSize();
     this.buildDOM();
     this.calculateAngles();
     this.createLabelsAndLines();
@@ -300,6 +317,19 @@ class DialSelector extends HTMLElement {
 
       case 'line-thickness':
         this.updateLineThickness();
+        break;
+
+      case 'length-indicator':
+        this.updateIndicatorLength();
+        break;
+
+      case 'radius-inner':
+      case 'color-inner-circle':
+      case 'color-outer-circle':
+      case 'width-inner-circle':
+      case 'radius-outer':
+      case 'width-outer-circle':
+        this.updateKnobSize();
         break;
 
       case 'options':
@@ -397,6 +427,60 @@ class DialSelector extends HTMLElement {
     } else {
       // Reset to default if attribute is removed
       this.style.removeProperty('--line-stroke-width');
+    }
+  }
+
+  updateIndicatorLength() {
+    const lengthIndicator = this.getAttribute('length-indicator');
+    if (lengthIndicator) {
+      this.style.setProperty('--indicator-length', lengthIndicator);
+    } else {
+      // Reset to default if attribute is removed
+      this.style.removeProperty('--indicator-length');
+    }
+  }
+
+  updateKnobSize() {
+    const radiusInner = this.getAttribute('radius-inner');
+    if (radiusInner) {
+      this.style.setProperty('--radius-inner', radiusInner);
+    } else {
+      this.style.removeProperty('--radius-inner');
+    }
+
+    const colorInnerCircle = this.getAttribute('color-inner-circle');
+    if (colorInnerCircle) {
+      this.style.setProperty('--color-inner-circle', colorInnerCircle);
+    } else {
+      this.style.removeProperty('--color-inner-circle');
+    }
+
+    const colorOuterCircle = this.getAttribute('color-outer-circle');
+    if (colorOuterCircle) {
+      this.style.setProperty('--color-outer-circle', colorOuterCircle);
+    } else {
+      this.style.removeProperty('--color-outer-circle');
+    }
+
+    const widthInnerCircle = this.getAttribute('width-inner-circle');
+    if (widthInnerCircle) {
+      this.style.setProperty('--width-inner-circle', widthInnerCircle);
+    } else {
+      this.style.removeProperty('--width-inner-circle');
+    }
+
+    const radiusOuter = this.getAttribute('radius-outer');
+    if (radiusOuter) {
+      this.style.setProperty('--radius-outer', radiusOuter);
+    } else {
+      this.style.removeProperty('--radius-outer');
+    }
+
+    const widthOuterCircle = this.getAttribute('width-outer-circle');
+    if (widthOuterCircle) {
+      this.style.setProperty('--width-outer-circle', widthOuterCircle);
+    } else {
+      this.style.removeProperty('--width-outer-circle');
     }
   }
 
@@ -546,7 +630,10 @@ class DialSelector extends HTMLElement {
 
     const centerX = KNOB_CENTER;
     const centerY = KNOB_CENTER;
-    const knobRadius = KNOB_RADIUS;
+    // Get the actual knob radius from CSS variable, with fallback to default
+    const computedStyle = getComputedStyle(this);
+    const radiusOuter = computedStyle.getPropertyValue('--radius-outer').trim() || '90px';
+    const knobRadius = parseFloat(radiusOuter);
     const horizontalLength = HORIZONTAL_LINE_LENGTH;
 
     this.labels.forEach((label, index) => {

@@ -96,6 +96,20 @@
 		title="Custom Configuration" color-indicator="#00ff00" line-thickness="4" color-selection="purple"
 		onchange="console.log('Selected:', event.detail.value)">
 	</dial-selector>
+
+
+	<!-- Indicator Length -->
+	<dial-selector title="Indicator Length, Longer" length-indicator="120px" onchange="handleDialChange(event)">
+	</dial-selector>
+
+	<dial-selector title="Indicator Length, Shorter" length-indicator="30px" onchange="handleDialChange(event)">
+	</dial-selector>
+
+	<!-- Example with custom knob sizes and colors for both circles -->
+	<dial-selector title="Custom Knob Sizes" radius-outer="100px" width-outer-circle="6px" color-outer-circle="#00ff00" radius-inner="75px"
+		width-inner-circle="3px" color-inner-circle="#ff00ff" onchange="handleDialChange(event)">
+	</dial-selector>
+
 </body>
 
 </html>
