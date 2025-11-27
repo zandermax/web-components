@@ -1,211 +1,243 @@
+// Inject CSS into the document
+const style = document.createElement('style');
+style.textContent = `
+dial-selector {
+  --color-ink: #f4f4f4;
+  --color-accent: #f13b3b;
+  --color-line: #c7c2b5;
+  --color-indicator: #f13b3b;
+  --shadow: 0;
+  --label-radius: 150px;
+  display: block;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+}
+
+dial-selector * {
+  box-sizing: border-box;
+}
+
+dial-selector .panel {
+  position: relative;
+  background: transparent;
+  padding: 40px 48px 60px;
+  border: 3px solid var(--color-ink);
+  width: min(900px, 95vw);
+  overflow: visible;
+  --indicator-angle: 0deg;
+}
+
+dial-selector h1 {
+  margin: 0 0 36px;
+  letter-spacing: 2px;
+  font-size: 18px;
+  text-transform: uppercase;
+}
+
+dial-selector .selector {
+  display: grid;
+  grid-template-columns: 200px 320px 200px;
+  gap: 40px;
+  align-items: center;
+  justify-content: center;
+}
+
+dial-selector .label-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  justify-content: center;
+}
+
+dial-selector .label-column.left {
+  align-items: flex-end;
+}
+
+dial-selector .label-column.right {
+  align-items: flex-start;
+}
+
+dial-selector .knob-wrap {
+  position: relative;
+  width: 320px;
+  height: 320px;
+  display: grid;
+  place-items: center;
+}
+
+dial-selector .knob {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  border: 4px solid var(--color-ink);
+  border-radius: 50%;
+  background: #11161c;
+  box-shadow: var(--shadow);
+  z-index: 2;
+}
+
+dial-selector .indicator {
+  position: absolute;
+  width: 10px;
+  height: 60px;
+  background: var(--color-indicator);
+  border-radius: 5px;
+  top: 18px;
+  left: 50%;
+  transform-origin: 50% 72px;
+  transform: translateX(-50%) rotate(calc(90deg + var(--indicator-angle)));
+  transition: transform 0.25s ease-in;
+  transition-delay: 0.125s;
+}
+
+dial-selector .knob::before {
+  content: '';
+  position: absolute;
+  inset: 18px;
+  border: 2px solid var(--color-ink);
+  border-radius: 50%;
+  opacity: 0.6;
+}
+
+dial-selector .dial-label {
+  text-decoration: none;
+  color: inherit;
+  font-size: 14px;
+  letter-spacing: 1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  cursor: pointer;
+  user-select: none;
+  padding: 8px 12px;
+  position: relative;
+}
+
+dial-selector .dial-label.active {
+  color: var(--color-accent);
+}
+
+dial-selector #lineContainer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+dial-selector .advance {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+  pointer-events: auto;
+  background: transparent;
+}
+
+@media (max-width: 900px) {
+  dial-selector .panel {
+    padding: 28px 22px 50px;
+  }
+
+  dial-selector .selector {
+    grid-template-columns: 150px 260px 150px;
+    gap: 20px;
+  }
+
+  dial-selector .knob-wrap {
+    width: 260px;
+    height: 260px;
+  }
+
+  dial-selector .dial-label {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+
+  dial-selector .label-column {
+    gap: 16px;
+  }
+}
+`;
+
+// Inject styles only once
+if (!document.getElementById('dial-selector-styles')) {
+  style.id = 'dial-selector-styles';
+  document.head.appendChild(style);
+}
+
 class DialSelector extends HTMLElement {
-	constructor() {
-		super();
-		this.OPTIONS = [
-			'PHONO-2',
-			'PHONO-1',
-			'TUNER',
-			'AUX',
-			'CD',
-			'TAPE',
-			'STREAM',
-			'TV'
-		];
-		this.currentIndex = 0;
-		this.currentAngle = 0;
-		this.isInitialized = false;
-		this.labels = [];
-		this.lines = [];
-		this.spokeAngles = [];
-		this.rightCount = 0;
-		this.leftCount = 0;
-		this.halfPoint = 0;
-	}
+  constructor() {
+    super();
+    this.currentIndex = 0;
+    this.previousIndex = -1;
+    this.currentAngle = 0;
+    this.isInitialized = false;
+    this.labels = [];
+    this.lines = [];
+    this.spokeAngles = [];
+    this.rightCount = 0;
+    this.leftCount = 0;
+    this.halfPoint = 0;
+  }
 
-	connectedCallback() {
-		this.injectStyles();
-		this.buildDOM();
-		this.calculateAngles();
-		this.createLabelsAndLines();
+  static get observedAttributes() {
+    return ['color-indicator', 'options', 'title', 'onchange'];
+  }
 
-		setTimeout(() => {
-			this.updateLines();
-			this.updateSelector();
-		}, 100);
+  connectedCallback() {
+    // Parse options from attribute or use default
+    const optionsAttr = this.getAttribute('options');
+    this.OPTIONS = optionsAttr
+      ? optionsAttr.split(',').map((opt) => opt.trim())
+      : ['PHONO-2', 'PHONO-1', 'TUNER', 'AUX', 'CD', 'TAPE', 'STREAM', 'TV'];
 
-		window.addEventListener('resize', () => this.updateLines());
-	}
+    this.updateIndicatorColor();
+    this.buildDOM();
+    this.calculateAngles();
+    this.createLabelsAndLines();
 
-	injectStyles() {
-		if (document.getElementById('dial-selector-styles')) {
-			return;
-		}
+    setTimeout(() => {
+      this.updateLines();
+      this.updateSelector();
+    }, 100);
 
-		const style = document.createElement('style');
-		style.id = 'dial-selector-styles';
-		style.textContent = `
-			dial-selector {
-				--bg: #1e252a;
-				--ink: #f4f4f4;
-				--accent: #f13b3b;
-				--line: #c7c2b5;
-				--shadow: 0;
-				--label-radius: 150px;
-				display: block;
-				font-family: 'IBM Plex Mono', 'Courier New', monospace;
-			}
+    window.addEventListener('resize', () => this.updateLines());
+  }
 
-			dial-selector * {
-				box-sizing: border-box;
-			}
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (name === 'color-indicator') {
+      this.updateIndicatorColor();
+    } else if (name === 'options' && this.isInitialized) {
+      // Rebuild if options change
+      this.OPTIONS = newValue.split(',').map((opt) => opt.trim());
+      this.labels = [];
+      this.lines = [];
+      this.spokeAngles = [];
+      this.currentIndex = 0;
+      this.previousIndex = -1;
+      this.isInitialized = false;
+      this.calculateAngles();
+      this.createLabelsAndLines();
+      setTimeout(() => {
+        this.updateLines();
+        this.updateSelector();
+      }, 100);
+    } else if (name === 'title' && this.isInitialized) {
+      const titleEl = this.querySelector('h1');
+      if (titleEl) titleEl.textContent = newValue || 'Input Selector';
+    }
+  }
 
-			dial-selector .panel {
-				position: relative;
-				background: transparent;
-				padding: 40px 48px 60px;
-				border: 3px solid var(--ink);
-				width: min(900px, 95vw);
-				overflow: visible;
-				--indicator-angle: 0deg;
-			}
+  updateIndicatorColor() {
+    const colorIndicator = this.getAttribute('color-indicator');
+    if (colorIndicator) {
+      this.style.setProperty('--color-indicator', colorIndicator);
+    }
+  }
 
-			dial-selector h1 {
-				margin: 0 0 36px;
-				letter-spacing: 2px;
-				font-size: 18px;
-				text-transform: uppercase;
-			}
-
-			dial-selector .selector {
-				display: grid;
-				grid-template-columns: 200px 320px 200px;
-				gap: 40px;
-				align-items: center;
-				justify-content: center;
-			}
-
-			dial-selector .label-column {
-				display: flex;
-				flex-direction: column;
-				gap: 20px;
-				justify-content: center;
-			}
-
-			dial-selector .label-column.left {
-				align-items: flex-end;
-			}
-
-			dial-selector .label-column.right {
-				align-items: flex-start;
-			}
-
-			dial-selector .knob-wrap {
-				position: relative;
-				width: 320px;
-				height: 320px;
-				display: grid;
-				place-items: center;
-			}
-
-			dial-selector .knob {
-				position: relative;
-				width: 180px;
-				height: 180px;
-				border: 4px solid var(--ink);
-				border-radius: 50%;
-				background: #11161c;
-				box-shadow: var(--shadow);
-				z-index: 2;
-			}
-
-			dial-selector .indicator {
-				position: absolute;
-				width: 10px;
-				height: 60px;
-				background: var(--accent);
-				border-radius: 5px;
-				top: 18px;
-				left: 50%;
-				transform-origin: 50% 72px;
-				transform: translateX(-50%) rotate(calc(90deg + var(--indicator-angle)));
-				transition: transform 0.25s ease-in;
-				transition-delay: 0.125s;
-			}
-
-			dial-selector .knob::before {
-				content: "";
-				position: absolute;
-				inset: 18px;
-				border: 2px solid var(--ink);
-				border-radius: 50%;
-				opacity: 0.6;
-			}
-
-			dial-selector .dial-label {
-				text-decoration: none;
-				color: inherit;
-				font-size: 14px;
-				letter-spacing: 1px;
-				display: inline-flex;
-				align-items: center;
-				gap: 0;
-				cursor: pointer;
-				user-select: none;
-				padding: 8px 12px;
-				position: relative;
-			}
-
-			dial-selector .dial-label.active {
-				color: var(--accent);
-			}
-
-			dial-selector #lineContainer {
-				position: absolute;
-				inset: 0;
-				pointer-events: none;
-				overflow: visible;
-			}
-
-			dial-selector .advance {
-				position: absolute;
-				inset: 0;
-				cursor: pointer;
-				pointer-events: auto;
-				background: transparent;
-			}
-
-			@media (max-width: 900px) {
-				dial-selector .panel {
-					padding: 28px 22px 50px;
-				}
-
-				dial-selector .selector {
-					grid-template-columns: 150px 260px 150px;
-					gap: 20px;
-				}
-
-				dial-selector .knob-wrap {
-					width: 260px;
-					height: 260px;
-				}
-
-				dial-selector .dial-label {
-					font-size: 12px;
-					padding: 6px 8px;
-				}
-
-				dial-selector .label-column {
-					gap: 16px;
-				}
-			}
-		`;
-		document.head.appendChild(style);
-	}
-
-	buildDOM() {
-		this.innerHTML = `
+  buildDOM() {
+    const title = this.getAttribute('title') || 'Input Selector';
+    this.innerHTML = `
 			<div class="panel">
-				<h1>Input Selector</h1>
+				<h1>${title}</h1>
 				<div class="selector">
 					<div class="label-column left" id="leftColumn">
 						<!-- Left labels will be generated by JavaScript -->
@@ -227,166 +259,217 @@ class DialSelector extends HTMLElement {
 				</div>
 			</div>
 		`;
-	}
+  }
 
-	calculateAngles() {
-		const rightArcStart = -45;
-		const rightArcEnd = 45;
-		const leftArcStart = 135;
-		const leftArcEnd = 225;
+  calculateAngles() {
+    const rightArcStart = -45;
+    const rightArcEnd = 45;
+    const leftArcStart = 135;
+    const leftArcEnd = 225;
 
-		this.halfPoint = Math.ceil(this.OPTIONS.length / 2);
-		this.rightCount = this.OPTIONS.length - this.halfPoint;
-		this.leftCount = this.halfPoint;
+    this.halfPoint = Math.ceil(this.OPTIONS.length / 2);
+    this.rightCount = this.OPTIONS.length - this.halfPoint;
+    this.leftCount = this.halfPoint;
 
-		// Generate angles for right side
-		for (let i = 0; i < this.rightCount; i++) {
-			const angle = rightArcStart + (rightArcEnd - rightArcStart) * i / (this.rightCount - 1);
-			this.spokeAngles.push(angle);
-		}
+    // Generate angles for right side
+    for (let i = 0; i < this.rightCount; i++) {
+      const angle = rightArcStart + ((rightArcEnd - rightArcStart) * i) / (this.rightCount - 1);
+      this.spokeAngles.push(angle);
+    }
 
-		// Generate angles for left side
-		for (let i = 0; i < this.leftCount; i++) {
-			const angle = leftArcStart + (leftArcEnd - leftArcStart) * i / (this.leftCount - 1);
-			this.spokeAngles.push(angle);
-		}
-	}
+    // Generate angles for left side
+    for (let i = 0; i < this.leftCount; i++) {
+      const angle = leftArcStart + ((leftArcEnd - leftArcStart) * i) / (this.leftCount - 1);
+      this.spokeAngles.push(angle);
+    }
+  }
 
-	createLabelsAndLines() {
-		const leftColumn = this.querySelector('#leftColumn');
-		const rightColumn = this.querySelector('#rightColumn');
-		const lineContainer = this.querySelector('#lineContainer');
-		const advanceButton = this.querySelector('#advanceButton');
+  createLabelsAndLines() {
+    const leftColumn = this.querySelector('#leftColumn');
+    const rightColumn = this.querySelector('#rightColumn');
+    const lineContainer = this.querySelector('#lineContainer');
+    const advanceButton = this.querySelector('#advanceButton');
 
-		this.OPTIONS.forEach((option, index) => {
-			const isLeft = index >= this.rightCount;
-			const container = isLeft ? leftColumn : rightColumn;
+    // Clear existing content
+    if (leftColumn) leftColumn.innerHTML = '';
+    if (rightColumn) rightColumn.innerHTML = '';
+    if (lineContainer) lineContainer.innerHTML = '';
 
-			// Create label
-			const label = document.createElement('label');
-			label.className = 'dial-label';
-			label.textContent = option;
-			label.dataset.index = index;
-			label.dataset.angle = this.spokeAngles[index];
+    this.OPTIONS.forEach((option, index) => {
+      const isLeft = index >= this.rightCount;
+      const container = isLeft ? leftColumn : rightColumn;
 
-			label.addEventListener('click', () => {
-				this.currentIndex = index;
-				this.updateSelector();
-			});
+      // Create label
+      const label = document.createElement('label');
+      label.className = 'dial-label';
+      label.textContent = option;
+      label.dataset.index = index;
+      label.dataset.angle = this.spokeAngles[index];
 
-			// Append to containers
-			if (isLeft) {
-				container.insertBefore(label, container.firstChild);
-			} else {
-				container.appendChild(label);
-			}
-			this.labels.push(label);
+      label.addEventListener('click', () => {
+        this.currentIndex = index;
+        this.updateSelector();
+      });
 
-			// Create line (spoke + horizontal)
-			const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-			line.setAttribute('fill', 'none');
-			line.setAttribute('stroke', 'var(--ink)');
-			line.setAttribute('stroke-width', '2');
-			line.setAttribute('opacity', '0.4');
-			line.setAttribute('stroke-linejoin', 'miter');
-			line.dataset.index = index;
-			lineContainer.appendChild(line);
-			this.lines.push(line);
-		});
+      // Append to containers
+      if (isLeft) {
+        container.insertBefore(label, container.firstChild);
+      } else {
+        container.appendChild(label);
+      }
+      this.labels.push(label);
 
-		advanceButton.addEventListener('click', () => {
-			this.currentIndex = (this.currentIndex + 1) % this.OPTIONS.length;
-			this.updateSelector();
-		});
-	}
+      // Create line (spoke + horizontal)
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      line.setAttribute('fill', 'none');
+      line.setAttribute('stroke', 'var(--color-ink)');
+      line.setAttribute('stroke-width', '2');
+      line.setAttribute('opacity', '0.4');
+      line.setAttribute('stroke-linejoin', 'miter');
+      line.dataset.index = index;
+      lineContainer.appendChild(line);
+      this.lines.push(line);
+    });
 
-	updateLines() {
-		const knobWrap = this.querySelector('.knob-wrap');
-		if (!knobWrap) return;
+    if (advanceButton) {
+      advanceButton.addEventListener('click', () => {
+        this.currentIndex = (this.currentIndex + 1) % this.OPTIONS.length;
+        this.updateSelector();
+      });
+    }
+  }
 
-		const centerX = 160;
-		const centerY = 160;
-		const knobRadius = 90;
-		const horizontalLength = 100;
+  updateLines() {
+    const knobWrap = this.querySelector('.knob-wrap');
+    if (!knobWrap) return;
 
-		this.labels.forEach((label, index) => {
-			const labelRect = label.getBoundingClientRect();
-			const knobWrapRect = knobWrap.getBoundingClientRect();
+    const centerX = 160;
+    const centerY = 160;
+    const knobRadius = 90;
+    const horizontalLength = 100;
 
-			const angle = parseFloat(label.dataset.angle);
-			const angleRad = angle * Math.PI / 180;
-			const isLeft = index >= this.rightCount;
+    this.labels.forEach((label, index) => {
+      const labelRect = label.getBoundingClientRect();
+      const knobWrapRect = knobWrap.getBoundingClientRect();
 
-			// Label connection point (relative to knob-wrap)
-			const labelX = isLeft ?
-				labelRect.right - knobWrapRect.left :
-				labelRect.left - knobWrapRect.left;
-			const labelY = labelRect.top + labelRect.height / 2 - knobWrapRect.top;
+      const angle = parseFloat(label.dataset.angle);
+      const angleRad = (angle * Math.PI) / 180;
+      const isLeft = index >= this.rightCount;
 
-			// Horizontal line endpoint (100px toward knob)
-			const horizontalEndX = isLeft ? labelX + horizontalLength : labelX - horizontalLength;
-			const horizontalEndY = labelY;
+      // Label connection point (relative to knob-wrap)
+      const labelX = isLeft ? labelRect.right - knobWrapRect.left : labelRect.left - knobWrapRect.left;
+      const labelY = labelRect.top + labelRect.height / 2 - knobWrapRect.top;
 
-			// Spoke start point at knob edge
-			const spokeStartX = centerX + Math.cos(angleRad) * knobRadius;
-			const spokeStartY = centerY + Math.sin(angleRad) * knobRadius;
+      // Horizontal line endpoint (100px toward knob)
+      const horizontalEndX = isLeft ? labelX + horizontalLength : labelX - horizontalLength;
+      const horizontalEndY = labelY;
 
-			// Calculate where the spoke meets the horizontal line
-			const dy = labelY - centerY;
-			const dx = dy / Math.tan(angleRad);
-			const intersectX = centerX + dx;
-			const intersectY = labelY;
+      // Spoke start point at knob edge
+      const spokeStartX = centerX + Math.cos(angleRad) * knobRadius;
+      const spokeStartY = centerY + Math.sin(angleRad) * knobRadius;
 
-			// Create polyline: label -> horizontal end -> intersection -> spoke start
-			const points = `${labelX},${labelY} ${horizontalEndX},${horizontalEndY} ${intersectX},${intersectY} ${spokeStartX},${spokeStartY}`;
-			this.lines[index].setAttribute('points', points);
-		});
-	}
+      // Calculate where the spoke meets the horizontal line
+      const dy = labelY - centerY;
+      const dx = dy / Math.tan(angleRad);
+      const intersectX = centerX + dx;
+      const intersectY = labelY;
 
-	updateSelector() {
-		if (this.labels.length === 0) return;
+      // Create polyline: label -> horizontal end -> intersection -> spoke start
+      const points = `${labelX},${labelY} ${horizontalEndX},${horizontalEndY} ${intersectX},${intersectY} ${spokeStartX},${spokeStartY}`;
+      this.lines[index].setAttribute('points', points);
+    });
+  }
 
-		const targetAngle = parseFloat(this.labels[this.currentIndex].dataset.angle);
+  updateSelector() {
+    if (this.labels.length === 0) return;
 
-		if (!this.isInitialized) {
-			this.currentAngle = targetAngle;
-			this.isInitialized = true;
-		} else {
-			// Calculate the shortest angular path to the target
-			let normalizedCurrent = ((this.currentAngle % 360) + 360) % 360;
-			let normalizedTarget = ((targetAngle % 360) + 360) % 360;
+    const targetAngle = parseFloat(this.labels[this.currentIndex].dataset.angle);
 
-			let forwardDist = normalizedTarget - normalizedCurrent;
-			if (forwardDist < 0) forwardDist += 360;
+    if (!this.isInitialized) {
+      this.currentAngle = targetAngle;
+      this.isInitialized = true;
+      this.previousIndex = this.currentIndex;
+    } else {
+      // Calculate the shortest angular path to the target
+      let normalizedCurrent = ((this.currentAngle % 360) + 360) % 360;
+      let normalizedTarget = ((targetAngle % 360) + 360) % 360;
 
-			let backwardDist = normalizedCurrent - normalizedTarget;
-			if (backwardDist < 0) backwardDist += 360;
+      let forwardDist = normalizedTarget - normalizedCurrent;
+      if (forwardDist < 0) forwardDist += 360;
 
-			if (backwardDist < forwardDist) {
-				this.currentAngle = this.currentAngle - backwardDist;
-			} else {
-				this.currentAngle = this.currentAngle + forwardDist;
-			}
-		}
+      let backwardDist = normalizedCurrent - normalizedTarget;
+      if (backwardDist < 0) backwardDist += 360;
 
-		const panel = this.querySelector('.panel');
-		if (panel) {
-			panel.style.setProperty('--indicator-angle', `${this.currentAngle}deg`);
-		}
+      if (backwardDist < forwardDist) {
+        this.currentAngle = this.currentAngle - backwardDist;
+      } else {
+        this.currentAngle = this.currentAngle + forwardDist;
+      }
+    }
 
-		this.labels.forEach((label, index) => {
-			if (index === this.currentIndex) {
-				label.classList.add('active');
-				this.lines[index].setAttribute('opacity', '0.8');
-				this.lines[index].setAttribute('stroke', 'var(--accent)');
-			} else {
-				label.classList.remove('active');
-				this.lines[index].setAttribute('opacity', '0.4');
-				this.lines[index].setAttribute('stroke', 'var(--ink)');
-			}
-		});
-	}
+    const panel = this.querySelector('.panel');
+    if (panel) {
+      panel.style.setProperty('--indicator-angle', `${this.currentAngle}deg`);
+    }
+
+    this.labels.forEach((label, index) => {
+      if (index === this.currentIndex) {
+        label.classList.add('active');
+        this.lines[index].setAttribute('opacity', '0.8');
+        this.lines[index].setAttribute('stroke', 'var(--color-accent)');
+      } else {
+        label.classList.remove('active');
+        this.lines[index].setAttribute('opacity', '0.4');
+        this.lines[index].setAttribute('stroke', 'var(--color-ink)');
+      }
+    });
+
+    // Dispatch change event if the selection actually changed
+    if (this.previousIndex !== this.currentIndex && this.isInitialized) {
+      this.dispatchChangeEvent();
+      this.previousIndex = this.currentIndex;
+    }
+  }
+
+  dispatchChangeEvent() {
+    const event = new CustomEvent('change', {
+      bubbles: true,
+      cancelable: true,
+      detail: {
+        value: this.OPTIONS[this.currentIndex],
+        index: this.currentIndex,
+        previousValue: this.OPTIONS[this.previousIndex],
+        previousIndex: this.previousIndex,
+      },
+    });
+
+    // Store original onchange to restore later
+    const onchangeAttr = this.getAttribute('onchange');
+    const originalOnchange = this.onchange;
+
+    // Temporarily remove onchange to prevent browser from auto-executing it
+    if (onchangeAttr) {
+      this.removeAttribute('onchange');
+      delete this.onchange;
+    }
+
+    // Dispatch the event (browser won't auto-execute onchange since we removed it)
+    this.dispatchEvent(event);
+
+    // Manually execute the handler
+    if (onchangeAttr) {
+      try {
+        const handler = new Function('event', onchangeAttr);
+        handler.call(this, event);
+      } catch (e) {
+        console.warn('Error executing onchange handler:', e);
+      }
+      // Restore the attribute
+      this.setAttribute('onchange', onchangeAttr);
+    } else if (typeof originalOnchange === 'function') {
+      originalOnchange.call(this, event);
+    }
+  }
 }
 
 customElements.define('dial-selector', DialSelector);
-

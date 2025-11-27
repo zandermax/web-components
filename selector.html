@@ -26,10 +26,55 @@
 		}
 	</style>
 	<script src="dial-selector.js"></script>
+	<script>
+		// Helper function to generate a random color
+		function getRandomColor() {
+			return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+		}
+
+		// Handler function for dial selector changes
+		function handleDialChange(event) {
+			console.log('Selected:', event.detail.value);
+			// Change dial color to a random value
+			event.target.setAttribute('color-indicator', getRandomColor());
+		}
+
+		// Example: Listen for change events using addEventListener
+		// document.addEventListener('DOMContentLoaded', () => {
+		// 	const selector = document.querySelector('dial-selector');
+		// 	if (selector) {
+		// 		selector.addEventListener('change', (event) => {
+		// 			console.log('Selection changed:', event.detail);
+		// 			// event.detail contains:
+		// 			// - value: the selected option text
+		// 			// - index: the selected index
+		// 			// - previousValue: the previous option text
+		// 			// - previousIndex: the previous index
+		// 		});
+		// 	}
+		// });
+
+		// Example: You can also use the onchange attribute directly:
+		// <dial-selector onchange="handleChange(event)"></dial-selector>
+		// function handleChange(event) {
+		//   console.log('Selected:', event.detail.value);
+		// }
+	</script>
 </head>
 
 <body>
-	<dial-selector></dial-selector>
+	<!-- Basic usage with default options -->
+	<dial-selector onchange="handleDialChange(event)"></dial-selector>
+
+	<!-- Example with custom options and title (commented out) -->
+	<!--
+	<dial-selector
+		options="Option 1,Option 2,Option 3,Option 4"
+		title="Custom Selector"
+		color-indicator="#00ff00"
+		onchange="console.log('Selected:', event.detail.value)">
+	</dial-selector>
+	-->
 </body>
 
 </html>
