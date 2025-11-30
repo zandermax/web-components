@@ -39,8 +39,9 @@ dial-selector {
   display: block;
   font-family: var(--font-family);
   min-width: 200px;
-  max-width: 100%;
-  width: 100%;
+  max-width: var(--component-max-width, 100%);
+  width: var(--component-width, 100%);
+  height: var(--component-height, auto);
 }
 
 dial-selector * {
@@ -284,6 +285,8 @@ class DialSelector extends HTMLElement {
       'time-selection-delay',
       'font-size',
       'font-family',
+      'width',
+      'height',
     ];
   }
 
@@ -302,6 +305,8 @@ class DialSelector extends HTMLElement {
     this.updateSelectionDelay();
     this.updateFontSize();
     this.updateFontFamily();
+    this.updateWidth();
+    this.updateHeight();
     this.buildDOM();
     this.calculateAngles();
 
@@ -395,6 +400,14 @@ class DialSelector extends HTMLElement {
 
       case 'font-family':
         this.updateFontFamily();
+        break;
+
+      case 'width':
+        this.updateWidth();
+        break;
+
+      case 'height':
+        this.updateHeight();
         break;
 
       case 'options':
@@ -644,6 +657,31 @@ class DialSelector extends HTMLElement {
     } else {
       // Reset to default if attribute is removed
       this.style.removeProperty('--font-family');
+    }
+  }
+
+  updateWidth() {
+    const width = this.getAttribute('width');
+    if (width) {
+      // Accept percentage, pixel values, or other CSS units
+      // Set both width and max-width to the same value for natural/max width behavior
+      this.style.setProperty('--component-width', width);
+      this.style.setProperty('--component-max-width', width);
+    } else {
+      // Reset to defaults if attribute is removed
+      this.style.removeProperty('--component-width');
+      this.style.removeProperty('--component-max-width');
+    }
+  }
+
+  updateHeight() {
+    const height = this.getAttribute('height');
+    if (height) {
+      // Accept percentage, pixel values, or other CSS units
+      this.style.setProperty('--component-height', height);
+    } else {
+      // Reset to default if attribute is removed
+      this.style.removeProperty('--component-height');
     }
   }
 
