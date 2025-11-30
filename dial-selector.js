@@ -36,12 +36,19 @@ dial-selector {
   --horizontal-line-end-offset: 10px;
   --hit-area-stroke-width: 20px;
   --indicator-width: 10px;
+  /* Component dimensions */
+  --component-width: 100%;
+  --component-height: auto;
+  --component-min-width: 200px;
+  --component-min-height: 200px;
   display: block;
   font-family: var(--font-family);
-  min-width: 200px;
-  max-width: var(--component-max-width, 100%);
-  width: var(--component-width, 100%);
-  height: var(--component-height, auto);
+  min-width: var(--component-min-width);
+  max-width: var(--component-width);
+  width: var(--component-width);
+  height: var(--component-height);
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 dial-selector * {
@@ -663,25 +670,58 @@ class DialSelector extends HTMLElement {
   updateWidth() {
     const width = this.getAttribute('width');
     if (width) {
-      // Accept percentage, pixel values, or other CSS units
-      // Set both width and max-width to the same value for natural/max width behavior
-      this.style.setProperty('--component-width', width);
-      this.style.setProperty('--component-max-width', width);
+      // Parse the value and enforce minimum
+      const minWidthPx = 200;
+      let finalWidth = width;
+
+      // Check if it's a pixel value and enforce minimum
+      const pixelMatch = width.match(/^(\d+(?:\.\d+)?)px$/i);
+      if (pixelMatch) {
+        const pxValue = parseFloat(pixelMatch[1]);
+        if (pxValue < minWidthPx) {
+          finalWidth = `${minWidthPx}px`;
+        }
+      }
+
+      // Set both width and max-width to the same value for exact dimensions
+      this.style.setProperty('--component-width', finalWidth);
+      this.style.setProperty('width', finalWidth);
+      this.style.setProperty('max-width', finalWidth);
+      this.style.setProperty('min-width', finalWidth);
     } else {
       // Reset to defaults if attribute is removed
       this.style.removeProperty('--component-width');
-      this.style.removeProperty('--component-max-width');
+      this.style.removeProperty('width');
+      this.style.removeProperty('max-width');
+      this.style.removeProperty('min-width');
     }
   }
 
   updateHeight() {
     const height = this.getAttribute('height');
     if (height) {
-      // Accept percentage, pixel values, or other CSS units
-      this.style.setProperty('--component-height', height);
+      // Parse the value and enforce minimum
+      const minHeightPx = 200;
+      let finalHeight = height;
+
+      // Check if it's a pixel value and enforce minimum
+      const pixelMatch = height.match(/^(\d+(?:\.\d+)?)px$/i);
+      if (pixelMatch) {
+        const pxValue = parseFloat(pixelMatch[1]);
+        if (pxValue < minHeightPx) {
+          finalHeight = `${minHeightPx}px`;
+        }
+      }
+
+      // Set exact height
+      this.style.setProperty('--component-height', finalHeight);
+      this.style.setProperty('height', finalHeight);
+      this.style.setProperty('min-height', finalHeight);
     } else {
       // Reset to default if attribute is removed
       this.style.removeProperty('--component-height');
+      this.style.removeProperty('height');
+      this.style.removeProperty('min-height');
     }
   }
 
