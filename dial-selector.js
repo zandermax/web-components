@@ -49,6 +49,8 @@ dial-selector {
   height: var(--component-height);
   overflow: hidden;
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 dial-selector * {
@@ -66,6 +68,9 @@ dial-selector .selector {
   align-items: center;
   justify-content: center;
   width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 dial-selector .label-column {
@@ -74,6 +79,8 @@ dial-selector .label-column {
   flex-direction: column;
   justify-content: center;
   height: var(--label-column-height, 320px);
+  margin: 0;
+  padding: 0;
 }
 
 dial-selector .label-column.left {
@@ -688,12 +695,22 @@ class DialSelector extends HTMLElement {
       this.style.setProperty('width', finalWidth);
       this.style.setProperty('max-width', finalWidth);
       this.style.setProperty('min-width', finalWidth);
+
+      // Trigger dimension update to recalculate internal layout
+      if (this.isInitialized) {
+        this.updateDimensions();
+      }
     } else {
       // Reset to defaults if attribute is removed
       this.style.removeProperty('--component-width');
       this.style.removeProperty('width');
       this.style.removeProperty('max-width');
       this.style.removeProperty('min-width');
+
+      // Trigger dimension update to recalculate internal layout
+      if (this.isInitialized) {
+        this.updateDimensions();
+      }
     }
   }
 
@@ -717,11 +734,21 @@ class DialSelector extends HTMLElement {
       this.style.setProperty('--component-height', finalHeight);
       this.style.setProperty('height', finalHeight);
       this.style.setProperty('min-height', finalHeight);
+
+      // Trigger dimension update to recalculate internal layout
+      if (this.isInitialized) {
+        this.updateDimensions();
+      }
     } else {
       // Reset to default if attribute is removed
       this.style.removeProperty('--component-height');
       this.style.removeProperty('height');
       this.style.removeProperty('min-height');
+
+      // Trigger dimension update to recalculate internal layout
+      if (this.isInitialized) {
+        this.updateDimensions();
+      }
     }
   }
 
@@ -745,8 +772,9 @@ class DialSelector extends HTMLElement {
   }
 
   updateDimensions() {
-    // Get container width
+    // Get container width and height
     const containerWidth = this.getBoundingClientRect().width;
+    const containerHeight = this.getBoundingClientRect().height;
 
     if (containerWidth === 0) {
       // Component not yet rendered, use defaults
@@ -761,13 +789,27 @@ class DialSelector extends HTMLElement {
     const selector = this.querySelector('.selector');
     if (!selector) return;
 
+    // Check if height is explicitly set
+    const heightAttr = this.getAttribute('height');
+    const hasFixedHeight = !!heightAttr;
+
     // Calculate available space (accounting for gaps)
     const computedStyle = getComputedStyle(selector);
     const gap = parseFloat(computedStyle.gap) || 0;
     const availableWidth = containerWidth - gap * 2; // Two gaps between three columns
 
     // Target knob size: aim for about 40-50% of container width, but respect min/max
-    const targetSize = Math.min(Math.max(MIN_KNOB_WRAP_SIZE, availableWidth * 0.45), MAX_KNOB_WRAP_SIZE);
+    // If height is set, also consider height constraints
+    let targetSize = Math.min(Math.max(MIN_KNOB_WRAP_SIZE, availableWidth * 0.45), MAX_KNOB_WRAP_SIZE);
+
+    if (hasFixedHeight && containerHeight > 0) {
+      // When height is fixed, ensure knob fits within height
+      // Knob is square, so use the smaller of width-based or height-based size
+      const heightBasedSize = containerHeight;
+      targetSize = Math.min(targetSize, heightBasedSize);
+      // Still respect min/max
+      targetSize = Math.min(Math.max(MIN_KNOB_WRAP_SIZE, targetSize), MAX_KNOB_WRAP_SIZE);
+    }
 
     // Set the knob-wrap size via CSS variable
     this.style.setProperty('--knob-wrap-size', `${targetSize}px`);
@@ -785,7 +827,12 @@ class DialSelector extends HTMLElement {
     const scale = this.knobWrapSize / BASE_KNOB_WRAP_SIZE;
 
     // Scale all proportional dimensions
-    this.labelColumnHeight = BASE_LABEL_COLUMN_HEIGHT * scale;
+    // If height is fixed, use the container height for label columns
+    if (hasFixedHeight && containerHeight > 0) {
+      this.labelColumnHeight = containerHeight;
+    } else {
+      this.labelColumnHeight = BASE_LABEL_COLUMN_HEIGHT * scale;
+    }
     this.labelVerticalOffsetScale = BASE_LABEL_VERTICAL_OFFSET_SCALE * scale;
     this.horizontalLineLength = BASE_HORIZONTAL_LINE_LENGTH * scale;
     this.maxSpokeLength = BASE_MAX_SPOKE_LENGTH * scale;
