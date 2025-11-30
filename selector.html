@@ -24,6 +24,39 @@
 			min-height: 100vh;
 			margin: 0;
 		}
+
+		/* Theme styles */
+		body[data-page-theme="light"] {
+			--bg: #f4f4f4;
+			--ink: #1e252a;
+		}
+
+		body[data-page-theme="dark"] {
+			--bg: #1e252a;
+			--ink: #f4f4f4;
+		}
+
+		.dial-panel {
+			position: relative;
+			background: transparent;
+			padding: 40px 48px 60px;
+			border: 3px solid var(--ink);
+			width: min(900px, 95vw);
+			overflow: visible;
+		}
+
+		.dial-panel h1 {
+			margin: 0 0 36px;
+			letter-spacing: 2px;
+			font-size: 18px;
+			text-transform: uppercase;
+		}
+
+		@media (max-width: 900px) {
+			.dial-panel {
+				padding: 28px 22px 50px;
+			}
+		}
 	</style>
 	<script src="dial-selector.js"></script>
 	<script>
@@ -57,52 +90,109 @@
 		// function handleChange(event) {
 		//   console.log('Selected:', event.detail.value);
 		// }
+
+		function handleThemeChange(event) {
+			const theme = event.detail.value.toLowerCase();
+			document.body.setAttribute('data-page-theme', theme);
+		}
 	</script>
 </head>
 
-<body>
-	<dial-selector title="Basic Usage" onchange="handleDialChange(event)"></dial-selector>
+<body data-page-theme="dark">
+	<div class="dial-panel">
+		<h1>Theme</h1>
+		<dial-selector class="theme-switcher" options="Light,Dark" onchange="handleThemeChange(event)"></dial-selector>
+	</div>
 
-	<dial-selector options="Option 1,Option 2" title="2 Options" onchange="console.log('Selected:', event.detail.value)">
-	</dial-selector>
+	<div class="dial-panel">
+		<h1>Basic Usage</h1>
+		<dial-selector onchange="handleDialChange(event)"></dial-selector>
+	</div>
 
-	<dial-selector options="Option 1,Option 2,Option 3" title="3 Options" onchange="console.log('Selected:', event.detail.value)">
-	</dial-selector>
+	<div class="dial-panel">
+		<h1>No delay</h1>
+		<dial-selector time-selection-delay="0" onchange="handleDialChange(event)"></dial-selector>
+	</div>
 
-	<dial-selector options="Option 1,Option 2,Option 3,Option 4,Option 5" title="5 Options"
-		onchange="console.log('Selected:', event.detail.value)">
-	</dial-selector>
+	<div class="dial-panel">
+		<h1>350ms delay</h1>
+		<dial-selector time-selection-delay="350" onchange="handleDialChange(event)"></dial-selector>
+	</div>
 
-	<dial-selector title="Rainbow Indicator" indicator-rainbow onchange="handleDialChange(event)">
-	</dial-selector>
+	<div class="dial-panel">
+		<h1>2 Options</h1>
+		<dial-selector options="Option 1,Option 2" onchange="console.log('Selected:', event.detail.value)">
+		</dial-selector>
+	</div>
 
-	<dial-selector title="Custom Gradient" indicator-gradient="#ff0000, #0000ff" onchange="handleDialChange(event)">
-	</dial-selector>
+	<div class="dial-panel">
+		<h1>3 Options</h1>
+		<dial-selector options="Option 1,Option 2,Option 3" onchange="console.log('Selected:', event.detail.value)">
+		</dial-selector>
+	</div>
 
-	<dial-selector title="Thick Lines" line-thickness="3" onchange="handleDialChange(event)">
-	</dial-selector>
+	<div class="dial-panel">
+		<h1>5 Options</h1>
+		<dial-selector options="Option 1,Option 2,Option 3,Option 4,Option 5" onchange="console.log('Selected:', event.detail.value)">
+		</dial-selector>
+	</div>
 
-	<dial-selector options="Option 1,Option 2,Option 3,Option 4" title="Custom Configuration" color-indicator="#00ff00" line-thickness="4"
-		color-selection="purple" onchange="console.log('Selected:', event.detail.value)">
-	</dial-selector>
+	<div class="dial-panel">
+		<h1>Rainbow Indicator</h1>
+		<dial-selector indicator-rainbow onchange="handleDialChange(event)">
+		</dial-selector>
+	</div>
 
-	<dial-selector options="Option 1,Option 2,Option 3,Option 4,Option 5,Option 6,Option 7,Option 8,Option 9,Option 10"
-		title="Custom Configuration" color-indicator="#00ff00" line-thickness="4" color-selection="purple"
-		onchange="console.log('Selected:', event.detail.value)">
-	</dial-selector>
+	<div class="dial-panel">
+		<h1>Custom Gradient</h1>
+		<dial-selector indicator-gradient="#ff0000, #0000ff" onchange="handleDialChange(event)">
+		</dial-selector>
+	</div>
 
-	<dial-selector title="Indicator Length, Longer" length-indicator="120px" onchange="handleDialChange(event)">
-	</dial-selector>
+	<div class="dial-panel">
+		<h1>Thick Lines</h1>
+		<dial-selector line-thickness="3" onchange="handleDialChange(event)">
+		</dial-selector>
+	</div>
 
-	<dial-selector title="Indicator Length, Shorter" length-indicator="30px" onchange="handleDialChange(event)">
-	</dial-selector>
+	<div class="dial-panel">
+		<h1>Custom Configuration</h1>
+		<dial-selector options="Option 1,Option 2,Option 3,Option 4" color-indicator="#00ff00" line-thickness="4" color-selection="purple"
+			onchange="console.log('Selected:', event.detail.value)">
+		</dial-selector>
+	</div>
 
-	<dial-selector title="Center Indicator Offset" center-indicator="15px" length-indicator="50px" onchange="handleDialChange(event)">
-	</dial-selector>
+	<div class="dial-panel">
+		<h1>Custom Configuration</h1>
+		<dial-selector options="Option 1,Option 2,Option 3,Option 4,Option 5,Option 6,Option 7,Option 8,Option 9,Option 10"
+			color-indicator="#00ff00" line-thickness="4" color-selection="purple" onchange="console.log('Selected:', event.detail.value)">
+		</dial-selector>
+	</div>
 
-	<dial-selector title="Custom Knob Sizes" radius-outer="100px" width-outer-circle="6px" color-outer-circle="#00ff00" radius-inner="75px"
-		width-inner-circle="3px" color-inner-circle="#ff00ff" onchange="handleDialChange(event)">
-	</dial-selector>
+	<div class="dial-panel">
+		<h1>Indicator Length, Longer</h1>
+		<dial-selector length-indicator="120px" onchange="handleDialChange(event)">
+		</dial-selector>
+	</div>
+
+	<div class="dial-panel">
+		<h1>Indicator Length, Shorter</h1>
+		<dial-selector length-indicator="30px" onchange="handleDialChange(event)">
+		</dial-selector>
+	</div>
+
+	<div class="dial-panel">
+		<h1>Center Indicator Offset</h1>
+		<dial-selector center-indicator="15px" length-indicator="50px" onchange="handleDialChange(event)">
+		</dial-selector>
+	</div>
+
+	<div class="dial-panel">
+		<h1>Custom Knob Sizes</h1>
+		<dial-selector radius-outer="100px" width-outer-circle="6px" color-outer-circle="#00ff00" radius-inner="75px" width-inner-circle="3px"
+			color-inner-circle="#ff00ff" onchange="handleDialChange(event)">
+		</dial-selector>
+	</div>
 
 </body>
 
