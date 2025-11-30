@@ -63,13 +63,23 @@
 <body>
 	<dial-selector title="Basic Usage" onchange="handleDialChange(event)"></dial-selector>
 
+	<dial-selector options="Option 1,Option 2" title="2 Options" onchange="console.log('Selected:', event.detail.value)">
+	</dial-selector>
+
+	<dial-selector options="Option 1,Option 2,Option 3" title="3 Options" onchange="console.log('Selected:', event.detail.value)">
+	</dial-selector>
+
+	<dial-selector options="Option 1,Option 2,Option 3,Option 4,Option 5" title="5 Options"
+		onchange="console.log('Selected:', event.detail.value)">
+	</dial-selector>
+
 	<dial-selector title="Rainbow Indicator" indicator-rainbow onchange="handleDialChange(event)">
 	</dial-selector>
 
 	<dial-selector title="Custom Gradient" indicator-gradient="#ff0000, #0000ff" onchange="handleDialChange(event)">
 	</dial-selector>
 
-	<dial-selector line-thickness="3" onchange="handleDialChange(event)">
+	<dial-selector title="Thick Lines" line-thickness="3" onchange="handleDialChange(event)">
 	</dial-selector>
 
 	<dial-selector options="Option 1,Option 2,Option 3,Option 4" title="Custom Configuration" color-indicator="#00ff00" line-thickness="4"
@@ -81,28 +91,19 @@
 		onchange="console.log('Selected:', event.detail.value)">
 	</dial-selector>
 
-
-	<!-- Indicator Length -->
 	<dial-selector title="Indicator Length, Longer" length-indicator="120px" onchange="handleDialChange(event)">
 	</dial-selector>
 
 	<dial-selector title="Indicator Length, Shorter" length-indicator="30px" onchange="handleDialChange(event)">
 	</dial-selector>
 
-	<!-- Example with custom knob sizes and colors for both circles -->
+	<dial-selector title="Center Indicator Offset" center-indicator="15px" length-indicator="50px" onchange="handleDialChange(event)">
+	</dial-selector>
+
 	<dial-selector title="Custom Knob Sizes" radius-outer="100px" width-outer-circle="6px" color-outer-circle="#00ff00" radius-inner="75px"
 		width-inner-circle="3px" color-inner-circle="#ff00ff" onchange="handleDialChange(event)">
 	</dial-selector>
 
-	<dial-selector options="Option 1,Option 2" title="2 Options" onchange="console.log('Selected:', event.detail.value)">
-	</dial-selector>
-
-	<dial-selector options="Option 1,Option 2,Option 3" title="3 Options" onchange="console.log('Selected:', event.detail.value)">
-	</dial-selector>
-
-	<dial-selector options="Option 1,Option 2,Option 3,Option 4,Option 5" title="5 Options"
-		onchange="console.log('Selected:', event.detail.value)">
-	</dial-selector>
 </body>
 
 </html>

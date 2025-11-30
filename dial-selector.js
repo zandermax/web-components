@@ -14,6 +14,7 @@ dial-selector {
   --line-transition: opacity 0.3s ease, stroke 0.3s ease;
   /* Indicator styling variables */
   --indicator-length: 60px;
+  --center-indicator: 0px;
   /* Knob circle styling variables */
   --radius-outer: 90px;
   --width-outer-circle: 4px;
@@ -95,11 +96,11 @@ dial-selector .indicator {
   height: var(--indicator-length, 60px);
   background: var(--indicator-gradient, var(--color-indicator));
   border-radius: 5px;
-  top: calc(50% - var(--indicator-length, 60px));
-  left: 50%;
+  top: calc(50% + sin(var(--indicator-angle)) * var(--center-indicator, 0px) - var(--indicator-length, 60px));
+  left: calc(50% + cos(var(--indicator-angle)) * var(--center-indicator, 0px) - 5px);
   transform-origin: 50% 100%;
-  transform: translateX(-50%) rotate(calc(90deg + var(--indicator-angle)));
-  transition: transform 0.25s ease-in;
+  transform: rotate(calc(90deg + var(--indicator-angle)));
+  transition: transform 0.25s ease-in, top 0.25s ease-in, left 0.25s ease-in;
   transition-delay: 0.125s;
 }
 
@@ -264,6 +265,7 @@ class DialSelector extends HTMLElement {
       'indicator-gradient',
       'line-thickness',
       'length-indicator',
+      'center-indicator',
       'radius-inner',
       'color-inner-circle',
       'color-outer-circle',
@@ -283,6 +285,7 @@ class DialSelector extends HTMLElement {
     this.updateSelectionColor();
     this.updateLineThickness();
     this.updateIndicatorLength();
+    this.updateCenterIndicator();
     this.updateKnobSize();
     this.buildDOM();
     this.calculateAngles();
@@ -321,6 +324,10 @@ class DialSelector extends HTMLElement {
 
       case 'length-indicator':
         this.updateIndicatorLength();
+        break;
+
+      case 'center-indicator':
+        this.updateCenterIndicator();
         break;
 
       case 'radius-inner':
@@ -437,6 +444,16 @@ class DialSelector extends HTMLElement {
     } else {
       // Reset to default if attribute is removed
       this.style.removeProperty('--indicator-length');
+    }
+  }
+
+  updateCenterIndicator() {
+    const centerIndicator = this.getAttribute('center-indicator');
+    if (centerIndicator) {
+      this.style.setProperty('--center-indicator', centerIndicator);
+    } else {
+      // Reset to default if attribute is removed
+      this.style.removeProperty('--center-indicator');
     }
   }
 
