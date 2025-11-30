@@ -139,58 +139,58 @@
 
 	<div class="dial-panel">
 		<h1>Rainbow Indicator</h1>
-		<dial-selector indicator-rainbow onchange="handleDialChange(event)">
+		<dial-selector indicator-rainbow onchange="console.log('Selected:', event.detail.value)">
 		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>Custom Gradient</h1>
-		<dial-selector indicator-gradient="#ff0000, #0000ff" onchange="handleDialChange(event)">
+		<dial-selector indicator-gradient="#ff0000, #0000ff" onchange="console.log('Selected:', event.detail.value)">
 		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>Thick Lines</h1>
-		<dial-selector line-thickness="3" onchange="handleDialChange(event)">
+		<dial-selector line-thickness="150" onchange="console.log('Selected:', event.detail.value)">
 		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>Custom Configuration</h1>
-		<dial-selector options="Option 1,Option 2,Option 3,Option 4" color-indicator="#00ff00" line-thickness="4" color-selection="purple"
-			onchange="console.log('Selected:', event.detail.value)">
-		</dial-selector>
-	</div>
-
-	<div class="dial-panel">
-		<h1>Custom Configuration</h1>
-		<dial-selector options="Option 1,Option 2,Option 3,Option 4,Option 5,Option 6,Option 7,Option 8,Option 9,Option 10"
-			color-indicator="#00ff00" line-thickness="4" color-selection="purple" onchange="console.log('Selected:', event.detail.value)">
+		<dial-selector options="Option 1,Option 2,Option 3,Option 4,Option 5,Option 6,Option 7,Option 8,Option 9,Option 10" radius-outer="111"
+			font-size="120" font-family="Arial, sans-serif" width-outer-circle="150" color-outer-circle="#00ff00" radius-inner="104"
+			width-inner-circle="150" color-indicator="#00ff00" line-thickness="200" color-selection="purple" onchange="handleDialChange(event)">
 		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>Indicator Length, Longer</h1>
-		<dial-selector length-indicator="200" onchange="handleDialChange(event)">
+		<dial-selector length-indicator="200" onchange="console.log('Selected:', event.detail.value)">
 		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
-		<h1>Indicator Length, Shorter</h1>
-		<dial-selector length-indicator="50" onchange="handleDialChange(event)">
+		<h1>Indicator Length, 50%</h1>
+		<dial-selector length-indicator="50" onchange="console.log('Selected:', event.detail.value)">
 		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>Center Indicator Offset</h1>
-		<dial-selector center-indicator="15px" length-indicator="83" onchange="handleDialChange(event)">
+		<dial-selector center-indicator="100" length-indicator="83" onchange="console.log('Selected:', event.detail.value)">
 		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>Custom Knob Sizes</h1>
-		<dial-selector radius-outer="100px" width-outer-circle="6px" color-outer-circle="#00ff00" radius-inner="75px" width-inner-circle="3px"
-			color-inner-circle="#ff00ff" onchange="handleDialChange(event)">
+		<dial-selector radius-outer="111" width-outer-circle="150" color-outer-circle="#00ff00" radius-inner="104" width-inner-circle="150"
+			color-inner-circle="#ff00ff" onchange="console.log('Selected:', event.detail.value)">
+		</dial-selector>
+	</div>
+
+	<div class="dial-panel">
+		<h1>Custom Font Size & Family</h1>
+		<dial-selector font-size="120" font-family="Arial, sans-serif" onchange="console.log('Selected:', event.detail.value)">
 		</dial-selector>
 	</div>
 

@@ -23,6 +23,9 @@ dial-selector {
   --radius-inner: 72px;
   --width-inner-circle: 2px;
   --color-inner-circle: var(--color-ink);
+  /* Typography variables */
+  --font-size: clamp(10px, 1.5vw, 14px);
+  --font-family: 'IBM Plex Mono', 'Courier New', monospace;
   /* Responsive sizing variables (set dynamically) */
   --knob-wrap-size: 320px;
   --knob-center: 160px;
@@ -34,7 +37,7 @@ dial-selector {
   --hit-area-stroke-width: 20px;
   --indicator-width: 10px;
   display: block;
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-family: var(--font-family);
   min-width: 200px;
   max-width: 100%;
   width: 100%;
@@ -122,7 +125,8 @@ dial-selector .knob::before {
 dial-selector .dial-label {
   text-decoration: none;
   color: inherit;
-  font-size: clamp(10px, 1.5vw, 14px);
+  font-size: var(--font-size);
+  font-family: var(--font-family);
   letter-spacing: clamp(0.5px, 0.1vw, 1px);
   display: inline-flex;
   align-items: center;
@@ -191,6 +195,9 @@ const DEFAULT_LINE_STROKE_WIDTH = 2;
 const BASE_HORIZONTAL_LINE_END_OFFSET = 10;
 const BASE_INDICATOR_WIDTH = 10;
 const BASE_INDICATOR_LENGTH = 60; // Base indicator length at default knob size
+const BASE_CENTER_INDICATOR = 15; // Base center indicator offset (100% = 15px, default is 0 = 0%)
+const BASE_WIDTH_OUTER_CIRCLE = 4;
+const BASE_WIDTH_INNER_CIRCLE = 2;
 
 // Min/max constraints
 const MIN_KNOB_WRAP_SIZE = 200;
@@ -248,6 +255,13 @@ class DialSelector extends HTMLElement {
     this.horizontalLineEndOffset = BASE_HORIZONTAL_LINE_END_OFFSET;
     this.indicatorWidth = BASE_INDICATOR_WIDTH;
     this.indicatorLengthPercentage = 100; // Default to 100% (full length)
+    // Percentage values for attributes (default to 100% = default size)
+    this.centerIndicatorPercentage = 0; // Default is 0 (no offset)
+    this.radiusOuterPercentage = 100;
+    this.radiusInnerPercentage = 100;
+    this.widthOuterCirclePercentage = 100;
+    this.widthInnerCirclePercentage = 100;
+    this.lineThicknessPercentage = 100;
   }
 
   static get observedAttributes() {
@@ -268,6 +282,8 @@ class DialSelector extends HTMLElement {
       'radius-outer',
       'width-outer-circle',
       'time-selection-delay',
+      'font-size',
+      'font-family',
     ];
   }
 
@@ -284,6 +300,8 @@ class DialSelector extends HTMLElement {
     this.updateCenterIndicator();
     this.updateKnobSize();
     this.updateSelectionDelay();
+    this.updateFontSize();
+    this.updateFontFamily();
     this.buildDOM();
     this.calculateAngles();
 
@@ -369,6 +387,14 @@ class DialSelector extends HTMLElement {
 
       case 'time-selection-delay':
         this.updateSelectionDelay();
+        break;
+
+      case 'font-size':
+        this.updateFontSize();
+        break;
+
+      case 'font-family':
+        this.updateFontFamily();
         break;
 
       case 'options':
@@ -460,9 +486,21 @@ class DialSelector extends HTMLElement {
   updateLineThickness() {
     const lineThickness = this.getAttribute('line-thickness');
     if (lineThickness) {
-      this.style.setProperty('--line-stroke-width', lineThickness);
+      // Parse as percentage (0-100), with or without % sign
+      const percentage = parseFloat(lineThickness.replace('%', ''));
+      if (!isNaN(percentage) && percentage >= 0) {
+        this.lineThicknessPercentage = percentage;
+        // Calculate actual value from percentage of base
+        const actualThickness = (DEFAULT_LINE_STROKE_WIDTH * percentage) / 100;
+        this.style.setProperty('--line-stroke-width', `${actualThickness}px`);
+      } else {
+        // If invalid, default to 100%
+        this.lineThicknessPercentage = 100;
+        this.style.setProperty('--line-stroke-width', `${DEFAULT_LINE_STROKE_WIDTH}px`);
+      }
     } else {
       // Reset to default if attribute is removed
+      this.lineThicknessPercentage = 100;
       this.style.removeProperty('--line-stroke-width');
     }
   }
@@ -470,9 +508,10 @@ class DialSelector extends HTMLElement {
   updateIndicatorLength() {
     const lengthIndicator = this.getAttribute('length-indicator');
     if (lengthIndicator) {
-      // Parse as percentage (0-100), with or without % sign
+      // Parse as percentage (0+), with or without % sign
+      // Allow values > 100% for longer indicators
       const percentage = parseFloat(lengthIndicator.replace('%', ''));
-      if (!isNaN(percentage) && percentage >= 0 && percentage <= 100) {
+      if (!isNaN(percentage) && percentage >= 0) {
         this.indicatorLengthPercentage = percentage;
       } else {
         // If invalid, default to 100%
@@ -491,10 +530,21 @@ class DialSelector extends HTMLElement {
   updateCenterIndicator() {
     const centerIndicator = this.getAttribute('center-indicator');
     if (centerIndicator) {
-      this.style.setProperty('--center-indicator', centerIndicator);
+      // Parse as percentage (0-100+), with or without % sign
+      const percentage = parseFloat(centerIndicator.replace('%', ''));
+      if (!isNaN(percentage) && percentage >= 0) {
+        this.centerIndicatorPercentage = percentage;
+      } else {
+        // If invalid, default to 0%
+        this.centerIndicatorPercentage = 0;
+      }
     } else {
       // Reset to default if attribute is removed
-      this.style.removeProperty('--center-indicator');
+      this.centerIndicatorPercentage = 0;
+    }
+    // Trigger dimension update to recalculate scaled center-indicator
+    if (this.isInitialized) {
+      this.updateDimensions();
     }
   }
 
@@ -516,18 +566,30 @@ class DialSelector extends HTMLElement {
       this.style.removeProperty('--color-outer-circle');
     }
 
+    // Note: width-inner-circle and width-outer-circle are handled by updateDimensions() for responsive scaling
+    // Parse percentages here and store them
     const widthInnerCircle = this.getAttribute('width-inner-circle');
     if (widthInnerCircle) {
-      this.style.setProperty('--width-inner-circle', widthInnerCircle);
+      const percentage = parseFloat(widthInnerCircle.replace('%', ''));
+      if (!isNaN(percentage) && percentage >= 0) {
+        this.widthInnerCirclePercentage = percentage;
+      } else {
+        this.widthInnerCirclePercentage = 100;
+      }
     } else {
-      this.style.removeProperty('--width-inner-circle');
+      this.widthInnerCirclePercentage = 100;
     }
 
     const widthOuterCircle = this.getAttribute('width-outer-circle');
     if (widthOuterCircle) {
-      this.style.setProperty('--width-outer-circle', widthOuterCircle);
+      const percentage = parseFloat(widthOuterCircle.replace('%', ''));
+      if (!isNaN(percentage) && percentage >= 0) {
+        this.widthOuterCirclePercentage = percentage;
+      } else {
+        this.widthOuterCirclePercentage = 100;
+      }
     } else {
-      this.style.removeProperty('--width-outer-circle');
+      this.widthOuterCirclePercentage = 100;
     }
 
     // Trigger dimension update to recalculate scaled knob radii
@@ -546,6 +608,42 @@ class DialSelector extends HTMLElement {
     } else {
       // Reset to default if attribute is removed
       this.style.removeProperty('--time-selection-delay');
+    }
+  }
+
+  updateFontSize() {
+    const fontSize = this.getAttribute('font-size');
+    if (fontSize) {
+      // Check if it's a percentage value (numeric without units)
+      const percentage = parseFloat(fontSize.replace('%', ''));
+      if (!isNaN(percentage) && fontSize.replace('%', '').trim() === percentage.toString()) {
+        // It's a percentage - calculate relative to base clamp(10px, 1.5vw, 14px)
+        // For percentage, we'll scale the middle value (1.5vw) proportionally
+        // But since clamp is complex, we'll use a simpler approach: scale the max value
+        const baseMax = 14;
+        const scaledMax = (baseMax * percentage) / 100;
+        const baseMin = 10;
+        const scaledMin = (baseMin * percentage) / 100;
+        // Keep the viewport unit proportional
+        const viewportUnit = (1.5 * percentage) / 100;
+        this.style.setProperty('--font-size', `clamp(${scaledMin}px, ${viewportUnit}vw, ${scaledMax}px)`);
+      } else {
+        // It's a direct CSS value (e.g., "16px", "1.2em", "clamp(...)")
+        this.style.setProperty('--font-size', fontSize);
+      }
+    } else {
+      // Reset to default if attribute is removed
+      this.style.removeProperty('--font-size');
+    }
+  }
+
+  updateFontFamily() {
+    const fontFamily = this.getAttribute('font-family');
+    if (fontFamily) {
+      this.style.setProperty('--font-family', fontFamily);
+    } else {
+      // Reset to default if attribute is removed
+      this.style.removeProperty('--font-family');
     }
   }
 
@@ -622,18 +720,53 @@ class DialSelector extends HTMLElement {
     const radiusOuterAttr = this.getAttribute('radius-outer');
     const radiusInnerAttr = this.getAttribute('radius-inner');
 
-    // Use attribute value as base if set, otherwise use default base
-    const baseRadiusOuter = radiusOuterAttr ? parseFloat(radiusOuterAttr) : BASE_KNOB_RADIUS_OUTER;
-    const baseRadiusInner = radiusInnerAttr ? parseFloat(radiusInnerAttr) : BASE_KNOB_RADIUS_INNER;
+    // Parse as percentage if attribute is set
+    if (radiusOuterAttr) {
+      const percentage = parseFloat(radiusOuterAttr.replace('%', ''));
+      if (!isNaN(percentage) && percentage >= 0) {
+        this.radiusOuterPercentage = percentage;
+      } else {
+        this.radiusOuterPercentage = 100;
+      }
+    } else {
+      this.radiusOuterPercentage = 100;
+    }
+
+    if (radiusInnerAttr) {
+      const percentage = parseFloat(radiusInnerAttr.replace('%', ''));
+      if (!isNaN(percentage) && percentage >= 0) {
+        this.radiusInnerPercentage = percentage;
+      } else {
+        this.radiusInnerPercentage = 100;
+      }
+    } else {
+      this.radiusInnerPercentage = 100;
+    }
+
+    // Calculate base radii from percentages
+    const baseRadiusOuter = (BASE_KNOB_RADIUS_OUTER * this.radiusOuterPercentage) / 100;
+    const baseRadiusInner = (BASE_KNOB_RADIUS_INNER * this.radiusInnerPercentage) / 100;
 
     // Scale the radii based on the current scale factor
     const scaledRadiusOuter = baseRadiusOuter * scale;
     const scaledRadiusInner = baseRadiusInner * scale;
 
-    // Update knob size CSS variables (only if not explicitly set, or scale the explicit values)
-    // If user set custom values, we scale them proportionally for responsiveness
+    // Update knob size CSS variables
     this.style.setProperty('--radius-outer', `${scaledRadiusOuter}px`);
     this.style.setProperty('--radius-inner', `${scaledRadiusInner}px`);
+
+    // Calculate and set scaled circle widths
+    const baseWidthOuter = (BASE_WIDTH_OUTER_CIRCLE * this.widthOuterCirclePercentage) / 100;
+    const baseWidthInner = (BASE_WIDTH_INNER_CIRCLE * this.widthInnerCirclePercentage) / 100;
+    const scaledWidthOuter = baseWidthOuter * scale;
+    const scaledWidthInner = baseWidthInner * scale;
+    this.style.setProperty('--width-outer-circle', `${scaledWidthOuter}px`);
+    this.style.setProperty('--width-inner-circle', `${scaledWidthInner}px`);
+
+    // Scale center-indicator offset
+    const baseCenterIndicator = (BASE_CENTER_INDICATOR * this.centerIndicatorPercentage) / 100;
+    const scaledCenterIndicator = baseCenterIndicator * scale;
+    this.style.setProperty('--center-indicator', `${scaledCenterIndicator}px`);
 
     // Calculate indicator length based on knob radius and percentage
     // Base indicator length is proportional to base knob radius
