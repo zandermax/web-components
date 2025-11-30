@@ -519,13 +519,25 @@ class DialSelector extends HTMLElement {
 
     // Generate angles for right side
     for (let i = 0; i < this.rightCount; i++) {
-      const angle = RIGHT_ARC_START + ((RIGHT_ARC_END - RIGHT_ARC_START) * i) / (this.rightCount - 1);
+      let angle;
+      if (this.rightCount === 1) {
+        // Single item on right side - use middle of arc
+        angle = (RIGHT_ARC_START + RIGHT_ARC_END) / 2;
+      } else {
+        angle = RIGHT_ARC_START + ((RIGHT_ARC_END - RIGHT_ARC_START) * i) / (this.rightCount - 1);
+      }
       this.spokeAngles.push(angle);
     }
 
     // Generate angles for left side
     for (let i = 0; i < this.leftCount; i++) {
-      const angle = LEFT_ARC_START + ((LEFT_ARC_END - LEFT_ARC_START) * i) / (this.leftCount - 1);
+      let angle;
+      if (this.leftCount === 1) {
+        // Single item on left side - use middle of arc
+        angle = (LEFT_ARC_START + LEFT_ARC_END) / 2;
+      } else {
+        angle = LEFT_ARC_START + ((LEFT_ARC_END - LEFT_ARC_START) * i) / (this.leftCount - 1);
+      }
       this.spokeAngles.push(angle);
     }
   }
@@ -543,9 +555,20 @@ class DialSelector extends HTMLElement {
     this.hitAreas = [];
 
     this.OPTIONS.forEach((option, index) => {
-      const isLeft = index >= this.rightCount;
+      // Left side gets first half (indices 0 to leftCount-1), right side gets second half (indices leftCount to length-1)
+      const isLeft = index < this.leftCount;
       const container = isLeft ? leftColumn : rightColumn;
-      const angle = this.spokeAngles[index];
+      let angleIndex;
+      if (isLeft) {
+        // Left side: normal order (Option 1 at top, Option leftCount at bottom)
+        // Map index 0 to rightCount (top left), index leftCount-1 to rightCount+leftCount-1 (bottom left)
+        angleIndex = this.rightCount + index;
+      } else {
+        // Right side: normal order (Option leftCount+1 at top, Option length at bottom)
+        // Map index leftCount to 0 (top right), index length-1 to rightCount-1 (bottom right)
+        angleIndex = index - this.leftCount;
+      }
+      const angle = this.spokeAngles[angleIndex];
       const angleRad = (angle * Math.PI) / 180;
 
       // Calculate vertical position based on angle
@@ -642,7 +665,7 @@ class DialSelector extends HTMLElement {
 
       const angle = parseFloat(label.dataset.angle);
       const angleRad = (angle * Math.PI) / 180;
-      const isLeft = index >= this.rightCount;
+      const isLeft = index < this.leftCount;
 
       // Label connection point (relative to knob-wrap)
       const labelX = isLeft ? labelRect.right - knobWrapRect.left : labelRect.left - knobWrapRect.left;

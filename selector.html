@@ -4,7 +4,7 @@
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>Brutalist Input Selector</title>
+	<title>Dial Input Selector</title>
 	<style>
 		:root {
 			--bg: #1e252a;
@@ -27,17 +27,13 @@
 	</style>
 	<script src="dial-selector.js"></script>
 	<script>
-		// Helper function to generate a random color
 		function getRandomColor() {
 			return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
 		}
 
-		// Handler function for dial selector changes
 		function handleDialChange(event) {
 			console.log('Selected:', event.detail.value);
-			// Change dial indicator color to a random value
 			event.target.setAttribute('color-indicator', getRandomColor());
-			// Change selection color to a random value
 			event.target.setAttribute('color-selection', getRandomColor());
 		}
 
@@ -65,29 +61,17 @@
 </head>
 
 <body>
-	<!-- Basic usage with default options -->
 	<dial-selector title="Basic Usage" onchange="handleDialChange(event)"></dial-selector>
 
-	<!-- Example with rainbow indicator using indicator-rainbow attribute -->
 	<dial-selector title="Rainbow Indicator" indicator-rainbow onchange="handleDialChange(event)">
 	</dial-selector>
-
-	<!-- Example with simple two-color gradient (commented out) -->
 
 	<dial-selector title="Custom Gradient" indicator-gradient="#ff0000, #0000ff" onchange="handleDialChange(event)">
 	</dial-selector>
 
-
-
-	<!-- Example with custom line thickness (commented out) -->
-	<!--
-	<dial-selector
-		line-thickness="3"
-		onchange="handleDialChange(event)">
+	<dial-selector line-thickness="3" onchange="handleDialChange(event)">
 	</dial-selector>
-	-->
 
-	<!-- Example with custom options and title (commented out) -->
 	<dial-selector options="Option 1,Option 2,Option 3,Option 4" title="Custom Configuration" color-indicator="#00ff00" line-thickness="4"
 		color-selection="purple" onchange="console.log('Selected:', event.detail.value)">
 	</dial-selector>
@@ -110,6 +94,15 @@
 		width-inner-circle="3px" color-inner-circle="#ff00ff" onchange="handleDialChange(event)">
 	</dial-selector>
 
+	<dial-selector options="Option 1,Option 2" title="2 Options" onchange="console.log('Selected:', event.detail.value)">
+	</dial-selector>
+
+	<dial-selector options="Option 1,Option 2,Option 3" title="3 Options" onchange="console.log('Selected:', event.detail.value)">
+	</dial-selector>
+
+	<dial-selector options="Option 1,Option 2,Option 3,Option 4,Option 5" title="5 Options"
+		onchange="console.log('Selected:', event.detail.value)">
+	</dial-selector>
 </body>
 
 </html>
