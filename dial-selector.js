@@ -292,7 +292,7 @@ class DialSelector extends HTMLElement {
     const value = this.getAttribute(attrName);
     if (!value) return defaultValue;
     const percentage = parseFloat(value.replace('%', ''));
-    return !isNaN(percentage) && percentage >= 0 ? percentage : defaultValue;
+    return !isNaN(percentage) && percentage >= 0 ? this.roundToThousandths(percentage) : defaultValue;
   }
 
   /**
@@ -307,7 +307,7 @@ class DialSelector extends HTMLElement {
     if (!value) return defaultValue;
     // Remove 'px' or '%' and parse
     const numericValue = parseFloat(value.replace(/[px%]/g, ''));
-    return !isNaN(numericValue) && numericValue >= 0 ? numericValue : defaultValue;
+    return !isNaN(numericValue) && numericValue >= 0 ? this.roundToThousandths(numericValue) : defaultValue;
   }
 
   /**
@@ -357,8 +357,17 @@ class DialSelector extends HTMLElement {
     });
   }
 
+  /**
+   * Rounds a number to 3 decimal places (thousandths).
+   * @param {number} value - The number to round
+   * @returns {number} The rounded number
+   */
+  roundToThousandths(value) {
+    return Math.round(value * 1000) / 1000;
+  }
+
   degreesToRadians(degrees) {
-    return (degrees * Math.PI) / 180;
+    return this.roundToThousandths((degrees * Math.PI) / 180);
   }
 
   /**
@@ -369,7 +378,7 @@ class DialSelector extends HTMLElement {
   calculateLabelTopPosition(angleRad) {
     const columnCenter = this.labelColumnHeight / 2;
     const verticalOffset = Math.sin(angleRad) * this.labelVerticalOffsetScale;
-    return columnCenter + verticalOffset;
+    return this.roundToThousandths(columnCenter + verticalOffset);
   }
 
   /**
@@ -504,7 +513,7 @@ class DialSelector extends HTMLElement {
       const pixelMatch = lineStrokeWidth.match(/^(\d+(?:\.\d+)?)px$/);
       if (pixelMatch) {
         const pixelValue = parseFloat(pixelMatch[1]);
-        this.percentages.lineThickness = (pixelValue / LINE.STROKE_WIDTH) * 100;
+        this.percentages.lineThickness = this.roundToThousandths((pixelValue / LINE.STROKE_WIDTH) * 100);
       } else {
         // If it's a percentage or other value, try to parse as percentage
         this.percentages.lineThickness = this.parsePercentageFromCSS('--line-stroke-width', 100);
@@ -538,7 +547,7 @@ class DialSelector extends HTMLElement {
     if (timeSelectionDelay) {
       // Convert milliseconds to seconds, clamp to minimum of 0
       const delayMs = parseFloat(timeSelectionDelay);
-      const delaySeconds = Math.max(0, delayMs) / 1000;
+      const delaySeconds = this.roundToThousandths(Math.max(0, delayMs) / 1000);
       this.style.setProperty('--time-selection-delay', `${delaySeconds}s`);
     } else {
       // Reset to default if attribute is removed
@@ -579,27 +588,28 @@ class DialSelector extends HTMLElement {
 
     // Calculate available space (accounting for gaps)
     const computedStyle = getComputedStyle(selector);
-    const gap = parseFloat(computedStyle.gap) || 0;
-    const availableWidth = containerWidth - gap * 2; // Two gaps between three columns
+    const gap = this.roundToThousandths(parseFloat(computedStyle.gap) || 0);
+    const availableWidth = this.roundToThousandths(containerWidth - gap * 2); // Two gaps between three columns
 
     // Target knob size: aim for about 40-50% of container width, but respect min/max
     // If height is set, also consider height constraints
-    let targetSize = Math.min(
-      Math.max(CONSTRAINTS.MIN_KNOB_WRAP_SIZE, availableWidth * 0.45),
-      CONSTRAINTS.MAX_KNOB_WRAP_SIZE
+    let targetSize = this.roundToThousandths(
+      Math.min(Math.max(CONSTRAINTS.MIN_KNOB_WRAP_SIZE, availableWidth * 0.45), CONSTRAINTS.MAX_KNOB_WRAP_SIZE)
     );
 
     if (hasFixedHeight && containerHeight > 0) {
       // When height is fixed, ensure knob fits within height
       // Knob is square, so use the smaller of width-based or height-based size
-      const heightBasedSize = containerHeight;
-      targetSize = Math.min(targetSize, heightBasedSize);
+      const heightBasedSize = this.roundToThousandths(containerHeight);
+      targetSize = this.roundToThousandths(Math.min(targetSize, heightBasedSize));
       // Still respect min/max
-      targetSize = Math.min(Math.max(CONSTRAINTS.MIN_KNOB_WRAP_SIZE, targetSize), CONSTRAINTS.MAX_KNOB_WRAP_SIZE);
+      targetSize = this.roundToThousandths(
+        Math.min(Math.max(CONSTRAINTS.MIN_KNOB_WRAP_SIZE, targetSize), CONSTRAINTS.MAX_KNOB_WRAP_SIZE)
+      );
     }
 
     // Set the knob-wrap size via CSS variable on host
-    this.style.setProperty('--knob-wrap-size', `${targetSize}px`);
+    this.style.setProperty('--knob-wrap-size', `${this.roundToThousandths(targetSize)}px`);
 
     // Force a reflow to ensure the browser has applied the size
     void knobWrap.offsetWidth;
@@ -607,11 +617,11 @@ class DialSelector extends HTMLElement {
     // Measure the actual rendered size (may differ slightly due to grid constraints)
     const actualSize = knobWrap.getBoundingClientRect().width;
 
-    this.knobWrapSize = actualSize;
-    this.knobCenter = this.knobWrapSize / 2;
+    this.knobWrapSize = this.roundToThousandths(actualSize);
+    this.knobCenter = this.roundToThousandths(this.knobWrapSize / 2);
 
     // Calculate scale factor relative to base size
-    return this.knobWrapSize / KNOB.WRAP_SIZE;
+    return this.roundToThousandths(this.knobWrapSize / KNOB.WRAP_SIZE);
   }
 
   updateKnobRadii(scale) {
@@ -626,7 +636,7 @@ class DialSelector extends HTMLElement {
       if (pixelMatch) {
         const pixelValue = parseFloat(pixelMatch[1]);
         // Convert to percentage based on unscaled base value
-        this.percentages.radiusOuter = (pixelValue / KNOB.RADIUS_OUTER) * 100;
+        this.percentages.radiusOuter = this.roundToThousandths((pixelValue / KNOB.RADIUS_OUTER) * 100);
       } else {
         this.percentages.radiusOuter = this.parsePercentageFromCSS('--radius-outer', 100);
       }
@@ -638,7 +648,7 @@ class DialSelector extends HTMLElement {
       const pixelMatch = radiusInnerCSS.match(/^(\d+(?:\.\d+)?)px$/);
       if (pixelMatch) {
         const pixelValue = parseFloat(pixelMatch[1]);
-        this.percentages.radiusInner = (pixelValue / KNOB.RADIUS_INNER) * 100;
+        this.percentages.radiusInner = this.roundToThousandths((pixelValue / KNOB.RADIUS_INNER) * 100);
       } else {
         this.percentages.radiusInner = this.parsePercentageFromCSS('--radius-inner', 100);
       }
@@ -647,12 +657,12 @@ class DialSelector extends HTMLElement {
     }
 
     // Calculate base radii from percentages
-    const baseRadiusOuter = (KNOB.RADIUS_OUTER * this.percentages.radiusOuter) / 100;
-    const baseRadiusInner = (KNOB.RADIUS_INNER * this.percentages.radiusInner) / 100;
+    const baseRadiusOuter = this.roundToThousandths((KNOB.RADIUS_OUTER * this.percentages.radiusOuter) / 100);
+    const baseRadiusInner = this.roundToThousandths((KNOB.RADIUS_INNER * this.percentages.radiusInner) / 100);
 
     // Scale the radii based on the current scale factor
-    const scaledRadiusOuter = baseRadiusOuter * scale;
-    const scaledRadiusInner = baseRadiusInner * scale;
+    const scaledRadiusOuter = this.roundToThousandths(baseRadiusOuter * scale);
+    const scaledRadiusInner = this.roundToThousandths(baseRadiusInner * scale);
 
     // Update knob size CSS variables (for responsive scaling)
     this.style.setProperty('--radius-outer', `${scaledRadiusOuter}px`);
@@ -669,16 +679,16 @@ class DialSelector extends HTMLElement {
     // Scale all proportional dimensions
     // If height is fixed, use the container height for label columns
     if (hasFixedHeight && containerHeight > 0) {
-      this.labelColumnHeight = containerHeight;
+      this.labelColumnHeight = this.roundToThousandths(containerHeight);
     } else {
-      this.labelColumnHeight = LABEL.COLUMN_HEIGHT * scale;
+      this.labelColumnHeight = this.roundToThousandths(LABEL.COLUMN_HEIGHT * scale);
     }
-    this.labelVerticalOffsetScale = LABEL.VERTICAL_OFFSET_SCALE * scale;
-    this.horizontalLineLength = LINE.HORIZONTAL_LENGTH * scale;
-    this.maxSpokeLength = LINE.MAX_SPOKE_LENGTH * scale;
-    this.hitAreaStrokeWidth = HIT_AREA.STROKE_WIDTH * scale;
-    this.horizontalLineEndOffset = LINE.HORIZONTAL_END_OFFSET * scale;
-    this.indicatorWidth = INDICATOR.WIDTH * scale;
+    this.labelVerticalOffsetScale = this.roundToThousandths(LABEL.VERTICAL_OFFSET_SCALE * scale);
+    this.horizontalLineLength = this.roundToThousandths(LINE.HORIZONTAL_LENGTH * scale);
+    this.maxSpokeLength = this.roundToThousandths(LINE.MAX_SPOKE_LENGTH * scale);
+    this.hitAreaStrokeWidth = this.roundToThousandths(HIT_AREA.STROKE_WIDTH * scale);
+    this.horizontalLineEndOffset = this.roundToThousandths(LINE.HORIZONTAL_END_OFFSET * scale);
+    this.indicatorWidth = this.roundToThousandths(INDICATOR.WIDTH * scale);
   }
 
   updateCSSVariables(scale, scaledRadiusOuter) {
@@ -690,7 +700,7 @@ class DialSelector extends HTMLElement {
       const pixelMatch = widthOuterCSS.match(/^(\d+(?:\.\d+)?)px$/);
       if (pixelMatch) {
         const pixelValue = parseFloat(pixelMatch[1]);
-        this.percentages.widthOuterCircle = (pixelValue / CIRCLE.WIDTH_OUTER) * 100;
+        this.percentages.widthOuterCircle = this.roundToThousandths((pixelValue / CIRCLE.WIDTH_OUTER) * 100);
       } else {
         this.percentages.widthOuterCircle = this.parsePercentageFromCSS('--width-outer-circle', 100);
       }
@@ -702,7 +712,7 @@ class DialSelector extends HTMLElement {
       const pixelMatch = widthInnerCSS.match(/^(\d+(?:\.\d+)?)px$/);
       if (pixelMatch) {
         const pixelValue = parseFloat(pixelMatch[1]);
-        this.percentages.widthInnerCircle = (pixelValue / CIRCLE.WIDTH_INNER) * 100;
+        this.percentages.widthInnerCircle = this.roundToThousandths((pixelValue / CIRCLE.WIDTH_INNER) * 100);
       } else {
         this.percentages.widthInnerCircle = this.parsePercentageFromCSS('--width-inner-circle', 100);
       }
@@ -713,32 +723,40 @@ class DialSelector extends HTMLElement {
     // Calculate and set scaled circle widths
     const baseWidthOuter = (CIRCLE.WIDTH_OUTER * this.percentages.widthOuterCircle) / 100;
     const baseWidthInner = (CIRCLE.WIDTH_INNER * this.percentages.widthInnerCircle) / 100;
-    const scaledWidthOuter = baseWidthOuter * scale;
-    const scaledWidthInner = baseWidthInner * scale;
+    const scaledWidthOuter = this.roundToThousandths(baseWidthOuter * scale);
+    const scaledWidthInner = this.roundToThousandths(baseWidthInner * scale);
     this.style.setProperty('--width-outer-circle', `${scaledWidthOuter}px`);
     this.style.setProperty('--width-inner-circle', `${scaledWidthInner}px`);
 
     // Scale center-indicator offset
     const baseCenterIndicator = (INDICATOR.CENTER * this.percentages.centerIndicator) / 100;
-    const scaledCenterIndicator = baseCenterIndicator * scale;
+    const scaledCenterIndicator = this.roundToThousandths(baseCenterIndicator * scale);
     this.style.setProperty('--center-indicator', `${scaledCenterIndicator}px`);
 
     // Calculate indicator length based on knob radius and percentage
     // Indicator length is proportional to knob radius
     // Ratio: INDICATOR.LENGTH / KNOB.RADIUS_OUTER
     const indicatorLengthRatio = INDICATOR.LENGTH / KNOB.RADIUS_OUTER;
-    const scaledIndicatorLength = scaledRadiusOuter * indicatorLengthRatio * (this.percentages.indicatorLength / 100);
+    const scaledIndicatorLength = this.roundToThousandths(
+      scaledRadiusOuter * indicatorLengthRatio * (this.percentages.indicatorLength / 100)
+    );
     this.style.setProperty('--indicator-length', `${scaledIndicatorLength}px`);
 
     // Update remaining CSS custom properties
-    this.style.setProperty('--knob-center', `${this.knobCenter}px`);
-    this.style.setProperty('--label-column-height', `${this.labelColumnHeight}px`);
-    this.style.setProperty('--label-vertical-offset-scale', `${this.labelVerticalOffsetScale}px`);
-    this.style.setProperty('--horizontal-line-length', `${this.horizontalLineLength}px`);
-    this.style.setProperty('--max-spoke-length', `${this.maxSpokeLength}px`);
-    this.style.setProperty('--hit-area-stroke-width', `${this.hitAreaStrokeWidth}px`);
-    this.style.setProperty('--horizontal-line-end-offset', `${this.horizontalLineEndOffset}px`);
-    this.style.setProperty('--indicator-width', `${this.indicatorWidth}px`);
+    this.style.setProperty('--knob-center', `${this.roundToThousandths(this.knobCenter)}px`);
+    this.style.setProperty('--label-column-height', `${this.roundToThousandths(this.labelColumnHeight)}px`);
+    this.style.setProperty(
+      '--label-vertical-offset-scale',
+      `${this.roundToThousandths(this.labelVerticalOffsetScale)}px`
+    );
+    this.style.setProperty('--horizontal-line-length', `${this.roundToThousandths(this.horizontalLineLength)}px`);
+    this.style.setProperty('--max-spoke-length', `${this.roundToThousandths(this.maxSpokeLength)}px`);
+    this.style.setProperty('--hit-area-stroke-width', `${this.roundToThousandths(this.hitAreaStrokeWidth)}px`);
+    this.style.setProperty(
+      '--horizontal-line-end-offset',
+      `${this.roundToThousandths(this.horizontalLineEndOffset)}px`
+    );
+    this.style.setProperty('--indicator-width', `${this.roundToThousandths(this.indicatorWidth)}px`);
   }
 
   /**
@@ -998,9 +1016,9 @@ class DialSelector extends HTMLElement {
 
   generateArcAngles(count, start, end) {
     if (count === 1) {
-      return [(start + end) / 2];
+      return [this.roundToThousandths((start + end) / 2)];
     }
-    return Array.from({ length: count }, (_, i) => start + ((end - start) * i) / (count - 1));
+    return Array.from({ length: count }, (_, i) => this.roundToThousandths(start + ((end - start) * i) / (count - 1)));
   }
 
   calculateAngles() {
@@ -1057,7 +1075,7 @@ class DialSelector extends HTMLElement {
       label.dataset.value = option.value;
 
       // Position label vertically based on angle
-      label.style.top = `${topPosition}px`;
+      label.style.top = `${this.roundToThousandths(topPosition)}px`;
       if (isLeft) {
         label.style.right = '0';
       } else {
@@ -1117,7 +1135,7 @@ class DialSelector extends HTMLElement {
       const angle = parseFloat(label.dataset.angle);
       const angleRad = this.degreesToRadians(angle);
       const topPosition = this.calculateLabelTopPosition(angleRad);
-      label.style.top = `${topPosition}px`;
+      label.style.top = `${this.roundToThousandths(topPosition)}px`;
     });
   }
 
@@ -1133,8 +1151,8 @@ class DialSelector extends HTMLElement {
     if (Math.abs(Math.sin(angleRad)) < THRESHOLDS.NEARLY_HORIZONTAL) {
       // Nearly horizontal spoke - limit the extension
       const maxExtension = isLeft ? -maxSpokeLength : maxSpokeLength;
-      intersectX = spokeStartX + maxExtension;
-      intersectY = labelY;
+      intersectX = this.roundToThousandths(spokeStartX + maxExtension);
+      intersectY = this.roundToThousandths(labelY);
     } else {
       // Parametric form: x = spokeStartX + t*cos(angle), y = spokeStartY + t*sin(angle)
       // We want y = labelY, so: t = (labelY - spokeStartY) / sin(angle)
@@ -1145,12 +1163,12 @@ class DialSelector extends HTMLElement {
       if (spokeLength > maxSpokeLength) {
         // Cap the spoke at max length
         const limitedT = t > 0 ? maxSpokeLength : -maxSpokeLength;
-        intersectX = spokeStartX + limitedT * Math.cos(angleRad);
+        intersectX = this.roundToThousandths(spokeStartX + limitedT * Math.cos(angleRad));
         // Keep intersection on the horizontal line at labelY
-        intersectY = labelY;
+        intersectY = this.roundToThousandths(labelY);
       } else {
-        intersectX = spokeStartX + t * Math.cos(angleRad);
-        intersectY = labelY;
+        intersectX = this.roundToThousandths(spokeStartX + t * Math.cos(angleRad));
+        intersectY = this.roundToThousandths(labelY);
       }
     }
 
@@ -1164,7 +1182,7 @@ class DialSelector extends HTMLElement {
     const horizontalEndX = isLeft
       ? Math.min(intersectX - this.horizontalLineEndOffset, labelX + horizontalLength)
       : Math.max(intersectX + this.horizontalLineEndOffset, labelX - horizontalLength);
-    return horizontalEndX;
+    return this.roundToThousandths(horizontalEndX);
   }
 
   updateLines() {
@@ -1176,7 +1194,7 @@ class DialSelector extends HTMLElement {
     // Get the actual knob radius from CSS variable, with fallback to default
     const computedStyle = getComputedStyle(this);
     const radiusOuter = computedStyle.getPropertyValue('--radius-outer').trim() || '90px';
-    const knobRadius = parseFloat(radiusOuter);
+    const knobRadius = this.roundToThousandths(parseFloat(radiusOuter));
 
     this.labels.forEach((label, index) => {
       const labelRect = label.getBoundingClientRect();
@@ -1187,12 +1205,14 @@ class DialSelector extends HTMLElement {
       const isLeft = index < this.leftCount;
 
       // Label connection point (relative to knob-wrap)
-      const labelX = isLeft ? labelRect.right - knobWrapRect.left : labelRect.left - knobWrapRect.left;
-      const labelY = labelRect.top + labelRect.height / 2 - knobWrapRect.top;
+      const labelX = this.roundToThousandths(
+        isLeft ? labelRect.right - knobWrapRect.left : labelRect.left - knobWrapRect.left
+      );
+      const labelY = this.roundToThousandths(labelRect.top + labelRect.height / 2 - knobWrapRect.top);
 
       // Spoke start point at knob edge
-      const spokeStartX = centerX + Math.cos(angleRad) * knobRadius;
-      const spokeStartY = centerY + Math.sin(angleRad) * knobRadius;
+      const spokeStartX = this.roundToThousandths(centerX + Math.cos(angleRad) * knobRadius);
+      const spokeStartY = this.roundToThousandths(centerY + Math.sin(angleRad) * knobRadius);
 
       // Calculate intersection point
       const { intersectX, intersectY } = this.calculateSpokeIntersection(
@@ -1205,7 +1225,7 @@ class DialSelector extends HTMLElement {
 
       // Calculate horizontal line end point
       const horizontalEndX = this.calculateHorizontalLineEnd(labelX, intersectX, isLeft);
-      const horizontalEndY = labelY;
+      const horizontalEndY = this.roundToThousandths(labelY);
 
       // Create polyline: label -> horizontal end -> intersection -> spoke start
       const points = `${labelX},${labelY} ${horizontalEndX},${horizontalEndY} ${intersectX},${intersectY} ${spokeStartX},${spokeStartY}`;
@@ -1228,7 +1248,7 @@ class DialSelector extends HTMLElement {
     const targetAngle = parseFloat(this.labels[this.currentIndex].dataset.angle);
 
     if (!this.isInitialized) {
-      this.currentAngle = targetAngle;
+      this.currentAngle = this.roundToThousandths(targetAngle);
       this.isInitialized = true;
       this.previousIndex = this.currentIndex;
     } else {
@@ -1243,13 +1263,13 @@ class DialSelector extends HTMLElement {
       if (backwardDist < 0) backwardDist += FULL_CIRCLE_DEGREES;
 
       if (backwardDist < forwardDist) {
-        this.currentAngle = this.currentAngle - backwardDist;
+        this.currentAngle = this.roundToThousandths(this.currentAngle - backwardDist);
       } else {
-        this.currentAngle = this.currentAngle + forwardDist;
+        this.currentAngle = this.roundToThousandths(this.currentAngle + forwardDist);
       }
     }
 
-    this.style.setProperty('--indicator-angle', `${this.currentAngle}deg`);
+    this.style.setProperty('--indicator-angle', `${this.roundToThousandths(this.currentAngle)}deg`);
 
     this.labels.forEach((label, index) => {
       const line = this.lines[index];
