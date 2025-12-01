@@ -5,6 +5,7 @@
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title>Dial Input Selector</title>
+	<link rel="stylesheet" href="dial-selector.css">
 	<style>
 		:root {
 			--bg: #1e252a;
@@ -145,13 +146,13 @@
 
 	<div class="dial-panel">
 		<h1>Rainbow Indicator</h1>
-		<dial-selector indicator-rainbow onchange="console.log('Selected:', event.detail.value)">
+		<dial-selector color-indicator-rainbow onchange="console.log('Selected:', event.detail.value)">
 		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>Custom Gradient</h1>
-		<dial-selector indicator-gradient="#ff0000, #0000ff" onchange="console.log('Selected:', event.detail.value)">
+		<dial-selector color-indicator-gradient="#ff0000, #0000ff" onchange="console.log('Selected:', event.detail.value)">
 		</dial-selector>
 	</div>
 
