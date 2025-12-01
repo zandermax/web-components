@@ -9,17 +9,17 @@
  *
  * `onchange`: JavaScript function code executed when selection changes. Example: "console.log(event.detail.value)"
  *
- * `options`: Comma-separated list of option labels. Example: "Option1, Option2, Option3"
- *
  * `time-selection-delay`: The delay before selection animation in milliseconds. Example: "250"
  *
+ * `value`: The initial selected value. Must match the value attribute of a child dial-option element.
+ *
  */
-const ATTRIBUTES = ['center-indicator', 'length-indicator', 'onchange', 'options', 'time-selection-delay'];
+const ATTRIBUTES = ['center-indicator', 'length-indicator', 'onchange', 'time-selection-delay', 'value'];
 
 const FULL_CIRCLE_DEGREES = 360;
 
 // Configuration constants
-const DEFAULT_OPTIONS = ['PHONO-2', 'PHONO-1', 'TUNER', 'AUX', 'CD', 'TAPE', 'STREAM', 'TV'];
+const DEFAULT_OPTIONS = ['AUX', 'CD', 'PHONO-1', 'PHONO-2', 'STREAM', 'TAPE', 'TUNER', 'TV'];
 
 // Arc base values - left side is primary, right side is derived
 // Note: the base axis is based on polar coordinates, so 0° is directly to the right, 180° is directly to the left.
@@ -109,7 +109,7 @@ const COLORS = {
 class DialSelector extends HTMLElement {
   constructor() {
     super();
-    // Create shadow DOM
+    // Create shadow DOM in constructor
     this.attachShadow({ mode: 'open' });
     this.currentIndex = 0;
     this.previousIndex = -1;
@@ -122,6 +122,9 @@ class DialSelector extends HTMLElement {
     this.rightCount = 0;
     this.leftCount = 0;
     this.resizeObserver = null;
+    this.childObserver = null;
+    this.OPTIONS = []; // Array of { value: string, label: string }
+    this._childOptions = null; // Cache for child options read before shadow DOM
     // Dynamic dimensions (calculated based on container size)
     this.knobWrapSize = KNOB.WRAP_SIZE;
     this.knobCenter = KNOB.WRAP_SIZE / 2;
@@ -149,8 +152,20 @@ class DialSelector extends HTMLElement {
   static observedAttributes = ATTRIBUTES;
 
   initializeOptions() {
-    const optionsAttr = this.getAttribute('options');
-    this.OPTIONS = optionsAttr ? optionsAttr.split(',').map((opt) => opt.trim()) : DEFAULT_OPTIONS;
+    // Always read the live light-DOM children
+    const childOptions = Array.from(this.querySelectorAll('dial-option'));
+
+    if (childOptions.length > 0) {
+      this.OPTIONS = childOptions.map((option, index) => {
+        const labelText = (option.textContent || '').trim();
+        const value = option.getAttribute('value') || labelText || String(index);
+        const label = labelText || value;
+        return { value, label };
+      });
+    } else {
+      // Fallback to defaults if no <dial-option> children
+      this.OPTIONS = DEFAULT_OPTIONS.map((opt) => ({ value: opt, label: opt }));
+    }
   }
 
   initializeAttributes() {
@@ -186,7 +201,7 @@ class DialSelector extends HTMLElement {
   }
 
   setupGeometry() {
-    this.buildDOM();
+    // buildDOM is now called in connectedCallback if needed
     this.calculateAngles();
     this.updateDimensions();
     this.createLabelsAndLines();
@@ -202,31 +217,63 @@ class DialSelector extends HTMLElement {
   }
 
   connectedCallback() {
-    this.initializeOptions();
-    this.initializeAttributes();
-    this.setupGeometry();
-    this.setupResizeObserver();
+    // Avoid re-running init if the element is moved in the DOM
+    if (this._hasConnected) return;
+    this._hasConnected = true;
 
-    // Disable transitions during initial setup
-    this.classList.add('no-transitions');
+    // Build DOM if shadow root is empty (no content yet)
+    if (!this.shadowRoot || this.shadowRoot.innerHTML === '') {
+      this.buildDOM();
+    }
 
-    // Set up window resize handler
-    window.addEventListener('resize', () => {
-      this.withoutTransitions(() => {
-        this.updateDimensions();
-        // updateLines() is called after updateDimensions(), which also calls updateLabelPositions()
-        this.updateLines();
-      });
-    });
+    // Do everything that depends on children in the *next task*,
+    // so the parser has had time to create <dial-option> children.
+    const init = () => {
+      this.initializeOptions(); // <-- now sees real <dial-option> children
+      this.initializeAttributes();
+      this.setupGeometry();
+      this.setupResizeObserver();
+      this.setupChildObserver();
 
-    this.finalizeInitialization();
+      // Disable transitions during initial setup
+      this.classList.add('no-transitions');
+
+      // One-time window resize handler
+      if (!this._resizeHandler) {
+        this._resizeHandler = () => {
+          this.withoutTransitions(() => {
+            this.updateDimensions();
+            this.updateLines();
+          });
+        };
+        window.addEventListener('resize', this._resizeHandler);
+      }
+
+      this.setInitialSelection();
+      this.finalizeInitialization();
+    };
+
+    // If the document is still loading, wait until after parsing + one tick.
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', () => setTimeout(init, 0), { once: true });
+    } else {
+      // For dynamically-created elements, children already exist by now
+      setTimeout(init, 0);
+    }
   }
 
   disconnectedCallback() {
-    // Clean up ResizeObserver when component is removed
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
+    }
+    if (this.childObserver) {
+      this.childObserver.disconnect();
+      this.childObserver = null;
+    }
+    if (this._resizeHandler) {
+      window.removeEventListener('resize', this._resizeHandler);
+      this._resizeHandler = null;
     }
   }
 
@@ -330,8 +377,18 @@ class DialSelector extends HTMLElement {
    * @param {number} index - The index of the option to select
    */
   selectIndex(index) {
-    this.currentIndex = index;
-    this.updateSelector();
+    if (index >= 0 && index < this.OPTIONS.length) {
+      this.currentIndex = index;
+      this.updateSelector();
+      // Update value attribute (only if it's different to avoid triggering change handler)
+      const currentOption = this.OPTIONS[this.currentIndex];
+      if (currentOption) {
+        const currentValue = this.getAttribute('value');
+        if (currentValue !== currentOption.value) {
+          this.setAttribute('value', currentOption.value);
+        }
+      }
+    }
   }
 
   handleAttributeChange({ name, oldValue, newValue }) {
@@ -339,7 +396,7 @@ class DialSelector extends HTMLElement {
       'length-indicator': () => this.updateIndicatorLength(),
       'center-indicator': () => this.updateCenterIndicator(),
       'time-selection-delay': () => this.updateSelectionDelay(),
-      options: () => this.handleOptionsChange(newValue),
+      value: () => this.handleValueChange(newValue),
       onchange: () => {
         // onchange attribute changes are handled automatically
         // No action needed here
@@ -353,28 +410,89 @@ class DialSelector extends HTMLElement {
     // Unknown attributes are ignored
   }
 
-  handleOptionsChange(newValue) {
-    if (this.isInitialized) {
-      // Disable transitions during rebuild
-      this.classList.add('no-transitions');
-      // Rebuild if options change
-      this.OPTIONS = newValue.split(',').map((opt) => opt.trim());
-      this.labels = [];
-      this.lines = [];
-      this.spokeAngles = [];
-      this.currentIndex = 0;
-      this.previousIndex = -1;
-      this.isInitialized = false;
-      this.updateDimensions();
-      this.calculateAngles();
-      this.createLabelsAndLines();
-      setTimeout(() => {
-        this.updateLines();
+  handleValueChange(newValue) {
+    if (newValue && this.isInitialized) {
+      const index = this.OPTIONS.findIndex((opt) => opt.value === newValue);
+      if (index !== -1 && index !== this.currentIndex) {
+        // Directly set currentIndex and update selector without triggering attribute change
+        this.currentIndex = index;
         this.updateSelector();
-        // Re-enable transitions after rebuild
-        this.classList.remove('no-transitions');
-      }, ANIMATION.INITIALIZATION_DELAY);
+      }
     }
+  }
+
+  setInitialSelection() {
+    const valueAttr = this.getAttribute('value');
+    if (valueAttr) {
+      const index = this.OPTIONS.findIndex((opt) => opt.value === valueAttr);
+      if (index !== -1) {
+        this.currentIndex = index;
+        this.previousIndex = index;
+      }
+    }
+    // Always set the value attribute to keep it in sync, even if not initially provided
+    if (this.OPTIONS.length > 0 && this.currentIndex >= 0) {
+      const currentOption = this.OPTIONS[this.currentIndex];
+      if (currentOption) {
+        this.setAttribute('value', currentOption.value);
+      }
+    }
+  }
+
+  rebuildComponent() {
+    this.labels = [];
+    this.lines = [];
+    this.spokeAngles = [];
+    this.currentIndex = 0;
+    this.previousIndex = -1;
+    this.isInitialized = false;
+    this.updateDimensions();
+    this.calculateAngles();
+    this.createLabelsAndLines();
+    this.setInitialSelection();
+    setTimeout(() => {
+      this.updateLines();
+      this.updateSelector();
+      // Re-enable transitions after rebuild
+      this.classList.remove('no-transitions');
+    }, ANIMATION.INITIALIZATION_DELAY);
+  }
+
+  setupChildObserver() {
+    this.childObserver = new MutationObserver((mutations) => {
+      let shouldRebuild = false;
+
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'childList') {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'DIAL-OPTION') {
+              shouldRebuild = true;
+            }
+          });
+          mutation.removedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'DIAL-OPTION') {
+              shouldRebuild = true;
+            }
+          });
+        }
+        if (mutation.type === 'attributes' && mutation.target.tagName === 'DIAL-OPTION') {
+          shouldRebuild = true;
+        }
+      });
+
+      if (shouldRebuild && this.isInitialized) {
+        this.initializeOptions(); // <-- re-read <dial-option> children
+        this.rebuildComponent();
+      }
+    });
+
+    this.childObserver.observe(this, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['value'],
+      characterData: true,
+    });
   }
 
   updateLineThickness() {
@@ -897,6 +1015,11 @@ class DialSelector extends HTMLElement {
   }
 
   createLabelsAndLines() {
+    // Ensure DOM is built
+    if (!this.shadowRoot || !this.shadowRoot.querySelector('#lineContainer')) {
+      this.buildDOM();
+    }
+
     const leftColumn = this.shadowRoot.querySelector('#leftColumn');
     const rightColumn = this.shadowRoot.querySelector('#rightColumn');
     const lineContainer = this.shadowRoot.querySelector('#lineContainer');
@@ -928,9 +1051,10 @@ class DialSelector extends HTMLElement {
       const label = document.createElement('label');
       label.className = 'dial-label';
       label.setAttribute('part', 'label');
-      label.textContent = option;
+      label.textContent = option.label;
       label.dataset.index = index;
       label.dataset.angle = angle;
+      label.dataset.value = option.value;
 
       // Position label vertically based on angle
       label.style.top = `${topPosition}px`;
@@ -1152,13 +1276,17 @@ class DialSelector extends HTMLElement {
   }
 
   dispatchChangeEvent() {
+    const currentOption = this.OPTIONS[this.currentIndex];
+    const previousOption = this.OPTIONS[this.previousIndex];
     const event = new CustomEvent('change', {
       bubbles: true,
       cancelable: true,
       detail: {
-        value: this.OPTIONS[this.currentIndex],
+        value: currentOption?.value || currentOption,
+        label: currentOption?.label || currentOption,
         index: this.currentIndex,
-        previousValue: this.OPTIONS[this.previousIndex],
+        previousValue: previousOption?.value || previousOption,
+        previousLabel: previousOption?.label || previousOption,
         previousIndex: this.previousIndex,
       },
     });

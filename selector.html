@@ -58,6 +58,52 @@
 				padding: 28px 22px 50px;
 			}
 		}
+
+		/* Example-specific styles using CSS custom properties */
+		.custom-width-height {
+			--component-width: 600px;
+			--component-height: 400px;
+		}
+
+		.rainbow-indicator {
+			--indicator-gradient: linear-gradient(to bottom, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
+		}
+
+		.custom-gradient {
+			--indicator-gradient: linear-gradient(to bottom, #ff0000, #0000ff);
+		}
+
+		.thick-lines {
+			--line-stroke-width: 3px;
+		}
+
+		.custom-config {
+			--radius-outer: 111px;
+			--radius-inner: 104px;
+			--width-outer-circle: 6px;
+			--width-inner-circle: 3px;
+			--color-outer-circle: #00ff00;
+			--color-inner-circle: #ff00ff;
+			--color-indicator: #00ff00;
+			--color-selection: purple;
+			--line-stroke-width: 4px;
+			--font-size: 18px;
+			--font-family: Arial, sans-serif;
+		}
+
+		.custom-knob-sizes {
+			--radius-outer: 111px;
+			--radius-inner: 104px;
+			--width-outer-circle: 6px;
+			--width-inner-circle: 3px;
+			--color-outer-circle: #00ff00;
+			--color-inner-circle: #ff00ff;
+		}
+
+		.custom-font {
+			--font-size: 18px;
+			--font-family: Arial, sans-serif;
+		}
 	</style>
 	<script src="dial-selector.js"></script>
 	<script>
@@ -67,8 +113,8 @@
 
 		function handleDialChange(event) {
 			console.log('Selected:', event.detail.value);
-			event.target.setAttribute('color-indicator', getRandomColor());
-			event.target.setAttribute('color-selection', getRandomColor());
+			event.target.style.setProperty('--indicator-color', getRandomColor());
+			event.target.style.setProperty('--color-selection', getRandomColor());
 		}
 
 		// Example: Listen for change events using addEventListener
@@ -102,108 +148,193 @@
 <body data-page-theme="dark">
 	<div class="dial-panel">
 		<h1>Theme</h1>
-		<dial-selector class="theme-switcher" options="Light,Dark" onchange="handleThemeChange(event)"></dial-selector>
+		<dial-selector class="theme-switcher" onchange="handleThemeChange(event)">
+			<dial-option value="light">Light</dial-option>
+			<dial-option value="dark">Dark</dial-option>
+		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>Basic Usage</h1>
-		<dial-selector onchange="handleDialChange(event)"></dial-selector>
-	</div>
-
-	<div class="dial-panel">
-		<h1>Custom Width & Height</h1>
-		<dial-selector width="600px" height="400px" onchange="console.log('Selected:', event.detail.value)">
+		<dial-selector onchange="handleDialChange(event)">
+			<dial-option value="aux">AUX</dial-option>
+			<dial-option value="cd">CD</dial-option>
+			<dial-option value="phono-1">PHONO-1</dial-option>
+			<dial-option value="phono-2">PHONO-2</dial-option>
+			<dial-option value="stream">STREAM</dial-option>
+			<dial-option value="tape">TAPE</dial-option>
+			<dial-option value="tuner">TUNER</dial-option>
+			<dial-option value="tv">TV</dial-option>
 		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>No delay</h1>
-		<dial-selector time-selection-delay="0" onchange="handleDialChange(event)"></dial-selector>
+		<dial-selector time-selection-delay="0" onchange="handleDialChange(event)">
+			<dial-option value="aux">AUX</dial-option>
+			<dial-option value="cd">CD</dial-option>
+			<dial-option value="phono-1">PHONO-1</dial-option>
+			<dial-option value="phono-2">PHONO-2</dial-option>
+			<dial-option value="stream">STREAM</dial-option>
+			<dial-option value="tape">TAPE</dial-option>
+			<dial-option value="tuner">TUNER</dial-option>
+			<dial-option value="tv">TV</dial-option>
+		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>350ms delay</h1>
-		<dial-selector time-selection-delay="350" onchange="handleDialChange(event)"></dial-selector>
+		<dial-selector time-selection-delay="350" onchange="handleDialChange(event)">
+			<dial-option value="aux">AUX</dial-option>
+			<dial-option value="cd">CD</dial-option>
+			<dial-option value="phono-1">PHONO-1</dial-option>
+			<dial-option value="phono-2">PHONO-2</dial-option>
+			<dial-option value="stream">STREAM</dial-option>
+			<dial-option value="tape">TAPE</dial-option>
+			<dial-option value="tuner">TUNER</dial-option>
+			<dial-option value="tv">TV</dial-option>
+		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>2 Options</h1>
-		<dial-selector options="Option 1,Option 2" onchange="console.log('Selected:', event.detail.value)">
+		<dial-selector onchange="console.log('Selected:', event.detail.value)">
+			<dial-option value="option-1">Option 1</dial-option>
+			<dial-option value="option-2">Option 2</dial-option>
 		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>3 Options</h1>
-		<dial-selector options="Option 1,Option 2,Option 3" onchange="console.log('Selected:', event.detail.value)">
+		<dial-selector onchange="console.log('Selected:', event.detail.value)">
+			<dial-option value="option-1">Option 1</dial-option>
+			<dial-option value="option-2">Option 2</dial-option>
+			<dial-option value="option-3">Option 3</dial-option>
 		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>5 Options</h1>
-		<dial-selector options="Option 1,Option 2,Option 3,Option 4,Option 5" onchange="console.log('Selected:', event.detail.value)">
+		<dial-selector onchange="console.log('Selected:', event.detail.value)">
+			<dial-option value="option-1">Option 1</dial-option>
+			<dial-option value="option-2">Option 2</dial-option>
+			<dial-option value="option-3">Option 3</dial-option>
+			<dial-option value="option-4">Option 4</dial-option>
+			<dial-option value="option-5">Option 5</dial-option>
 		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>Rainbow Indicator</h1>
-		<dial-selector color-indicator-rainbow onchange="console.log('Selected:', event.detail.value)">
+		<dial-selector class="rainbow-indicator" onchange="console.log('Selected:', event.detail.value)">
+			<dial-option value="aux">AUX</dial-option>
+			<dial-option value="cd">CD</dial-option>
+			<dial-option value="phono-1">PHONO-1</dial-option>
+			<dial-option value="phono-2">PHONO-2</dial-option>
+			<dial-option value="stream">STREAM</dial-option>
+			<dial-option value="tape">TAPE</dial-option>
+			<dial-option value="tuner">TUNER</dial-option>
+			<dial-option value="tv">TV</dial-option>
 		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>Custom Gradient</h1>
-		<dial-selector color-indicator-gradient="#ff0000, #0000ff" onchange="console.log('Selected:', event.detail.value)">
+		<dial-selector class="custom-gradient" onchange="console.log('Selected:', event.detail.value)">
+			<dial-option value="aux">AUX</dial-option>
+			<dial-option value="cd">CD</dial-option>
+			<dial-option value="phono-1">PHONO-1</dial-option>
+			<dial-option value="phono-2">PHONO-2</dial-option>
+			<dial-option value="stream">STREAM</dial-option>
+			<dial-option value="tape">TAPE</dial-option>
+			<dial-option value="tuner">TUNER</dial-option>
+			<dial-option value="tv">TV</dial-option>
 		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>Thick Lines</h1>
-		<dial-selector line-thickness="150" onchange="console.log('Selected:', event.detail.value)">
+		<dial-selector class="thick-lines" onchange="console.log('Selected:', event.detail.value)">
+			<dial-option value="aux">AUX</dial-option>
+			<dial-option value="cd">CD</dial-option>
+			<dial-option value="phono-1">PHONO-1</dial-option>
+			<dial-option value="phono-2">PHONO-2</dial-option>
+			<dial-option value="stream">STREAM</dial-option>
+			<dial-option value="tape">TAPE</dial-option>
+			<dial-option value="tuner">TUNER</dial-option>
+			<dial-option value="tv">TV</dial-option>
 		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>Custom Configuration</h1>
-		<dial-selector options="Option 1,Option 2,Option 3,Option 4,Option 5,Option 6,Option 7,Option 8,Option 9,Option 10" radius-outer="111"
-			font-size="120" font-family="Arial, sans-serif" width-outer-circle="150" color-outer-circle="#00ff00" radius-inner="104"
-			width-inner-circle="150" color-indicator="#00ff00" line-thickness="200" color-selection="purple" onchange="handleDialChange(event)">
+		<dial-selector class="custom-config" onchange="handleDialChange(event)">
+			<dial-option value="option-1">Option 1</dial-option>
+			<dial-option value="option-2">Option 2</dial-option>
+			<dial-option value="option-3">Option 3</dial-option>
+			<dial-option value="option-4">Option 4</dial-option>
+			<dial-option value="option-5">Option 5</dial-option>
+			<dial-option value="option-6">Option 6</dial-option>
+			<dial-option value="option-7">Option 7</dial-option>
+			<dial-option value="option-8">Option 8</dial-option>
+			<dial-option value="option-9">Option 9</dial-option>
+			<dial-option value="option-10">Option 10</dial-option>
 		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>Indicator Length, Longer</h1>
 		<dial-selector length-indicator="200" onchange="console.log('Selected:', event.detail.value)">
+			<dial-option value="aux">AUX</dial-option>
+			<dial-option value="cd">CD</dial-option>
+			<dial-option value="phono-1">PHONO-1</dial-option>
+			<dial-option value="phono-2">PHONO-2</dial-option>
+			<dial-option value="stream">STREAM</dial-option>
+			<dial-option value="tape">TAPE</dial-option>
+			<dial-option value="tuner">TUNER</dial-option>
+			<dial-option value="tv">TV</dial-option>
 		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>Indicator Length, 50%</h1>
 		<dial-selector length-indicator="50" onchange="console.log('Selected:', event.detail.value)">
+			<dial-option value="aux">AUX</dial-option>
+			<dial-option value="cd">CD</dial-option>
+			<dial-option value="phono-1">PHONO-1</dial-option>
+			<dial-option value="phono-2">PHONO-2</dial-option>
+			<dial-option value="stream">STREAM</dial-option>
+			<dial-option value="tape">TAPE</dial-option>
+			<dial-option value="tuner">TUNER</dial-option>
+			<dial-option value="tv">TV</dial-option>
 		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
 		<h1>Center Indicator Offset</h1>
 		<dial-selector center-indicator="100" length-indicator="83" onchange="console.log('Selected:', event.detail.value)">
+			<dial-option value="aux">AUX</dial-option>
+			<dial-option value="cd">CD</dial-option>
+			<dial-option value="phono-1">PHONO-1</dial-option>
+			<dial-option value="phono-2">PHONO-2</dial-option>
+			<dial-option value="stream">STREAM</dial-option>
+			<dial-option value="tape">TAPE</dial-option>
+			<dial-option value="tuner">TUNER</dial-option>
+			<dial-option value="tv">TV</dial-option>
 		</dial-selector>
 	</div>
 
 	<div class="dial-panel">
-		<h1>Custom Knob Sizes</h1>
-		<dial-selector radius-outer="111" width-outer-circle="150" color-outer-circle="#00ff00" radius-inner="104" width-inner-circle="150"
-			color-inner-circle="#ff00ff" onchange="console.log('Selected:', event.detail.value)">
-		</dial-selector>
-	</div>
-
-	<div class="dial-panel">
-		<h1>Custom Font Size & Family</h1>
-		<dial-selector font-size="120" font-family="Arial, sans-serif" onchange="console.log('Selected:', event.detail.value)">
-		</dial-selector>
-	</div>
-
-	<div class="dial-panel">
-		<h1>Custom Width & Height</h1>
-		<dial-selector width="600px" height="400px" onchange="console.log('Selected:', event.detail.value)">
+		<h1>Custom Size</h1>
+		<dial-selector class="custom-width-height" onchange="console.log('Selected:', event.detail.value)">
+			<dial-option value="aux">AUX</dial-option>
+			<dial-option value="cd">CD</dial-option>
+			<dial-option value="phono-1">PHONO-1</dial-option>
+			<dial-option value="phono-2">PHONO-2</dial-option>
+			<dial-option value="stream">STREAM</dial-option>
+			<dial-option value="tape">TAPE</dial-option>
+			<dial-option value="tuner">TUNER</dial-option>
+			<dial-option value="tv">TV</dial-option>
 		</dial-selector>
 	</div>
 
