@@ -7,15 +7,18 @@ dial-selector {
   --color-indicator: #f13b3b;
   --shadow: 0;
   --label-radius: 150px;
+
   /* Line styling variables */
   --line-stroke-width: 2;
   --line-opacity-inactive: 0.4;
   --line-opacity-active: 0.8;
   --line-transition: opacity 0.3s ease, stroke 0.3s ease;
+
   /* Indicator styling variables */
   --indicator-length: 60px;
   --center-indicator: 0px;
   --time-selection-delay: 0s;
+
   /* Knob circle styling variables */
   --radius-outer: 90px;
   --width-outer-circle: 4px;
@@ -23,9 +26,11 @@ dial-selector {
   --radius-inner: 72px;
   --width-inner-circle: 2px;
   --color-inner-circle: var(--color-ink);
+
   /* Typography variables */
   --font-size: clamp(10px, 1.5vw, 14px);
   --font-family: 'IBM Plex Mono', 'Courier New', monospace;
+
   /* Responsive sizing variables (set dynamically) */
   --knob-wrap-size: 320px;
   --knob-center: 160px;
@@ -36,6 +41,7 @@ dial-selector {
   --horizontal-line-end-offset: 10px;
   --hit-area-stroke-width: 20px;
   --indicator-width: 10px;
+
   /* Component dimensions */
   --component-width: 100%;
   --component-height: auto;
@@ -179,6 +185,40 @@ dial-selector .advance {
   cursor: pointer;
   pointer-events: auto;
   background: transparent;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  dial-selector .selector {
+    gap: clamp(8px, 2vw, 16px);
+  }
+
+  dial-selector {
+    --font-size: clamp(12px, 2vw, 16px);
+  }
+
+  dial-selector .dial-label {
+    padding: clamp(6px, 1.5vw, 10px) clamp(8px, 2vw, 14px);
+    min-height: 44px; /* Better touch target */
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* Very small screens - adjust knob size calculation */
+@media (max-width: 480px) {
+  dial-selector .selector {
+    gap: clamp(6px, 1.5vw, 12px);
+  }
+
+  dial-selector {
+    --font-size: clamp(13px, 2.5vw, 18px);
+  }
+
+  /* Increase minimum knob size on very small screens for better usability */
+  dial-selector .knob-wrap {
+    min-width: 200px;
+  }
 }
 `;
 
