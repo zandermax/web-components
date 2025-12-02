@@ -219,3 +219,21 @@ dial-selector .advance {
     min-width: 200px;
   }
 }
+
+/* One-sided mode: left only */
+dial-selector[data-one-sided="left"] .selector {
+  grid-template-columns: 1fr auto;
+}
+
+dial-selector[data-one-sided="left"] .label-column.right {
+  display: none;
+}
+
+/* One-sided mode: right only */
+dial-selector[data-one-sided="right"] .selector {
+  grid-template-columns: auto 1fr;
+}
+
+dial-selector[data-one-sided="right"] .label-column.left {
+  display: none;
+}

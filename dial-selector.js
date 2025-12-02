@@ -9,12 +9,14 @@
  *
  * `onchange`: JavaScript function code executed when selection changes. Example: "console.log(event.detail.value)"
  *
+ * `one-sided`: Show options only on one side. Values: "left", "inline-start", "right", "inline-end"
+ *
  * `time-selection-delay`: The delay before selection animation in milliseconds. Example: "250"
  *
  * `value`: The initial selected value. Must match the value attribute of a child dial-option element.
  *
  */
-const ATTRIBUTES = ['center-indicator', 'length-indicator', 'onchange', 'time-selection-delay', 'value'];
+const ATTRIBUTES = ['center-indicator', 'length-indicator', 'onchange', 'one-sided', 'time-selection-delay', 'value'];
 
 const FULL_CIRCLE_DEGREES = 360;
 
@@ -406,6 +408,7 @@ class DialSelector extends HTMLElement {
       'length-indicator': () => this.updateIndicatorLength(),
       'center-indicator': () => this.updateCenterIndicator(),
       'time-selection-delay': () => this.updateSelectionDelay(),
+      'one-sided': () => this.handleOneSidedChange(),
       value: () => this.handleValueChange(newValue),
       onchange: () => {
         // onchange attribute changes are handled automatically
@@ -418,6 +421,13 @@ class DialSelector extends HTMLElement {
       handler();
     }
     // Unknown attributes are ignored
+  }
+
+  handleOneSidedChange() {
+    if (this.isInitialized) {
+      // Rebuild component when one-sided mode changes
+      this.rebuildComponent();
+    }
   }
 
   handleValueChange(newValue) {
@@ -1057,6 +1067,24 @@ class DialSelector extends HTMLElement {
 						min-width: 200px;
 					}
 				}
+
+				/* One-sided mode: left only */
+				:host([data-one-sided="left"]) .selector {
+					grid-template-columns: 1fr auto;
+				}
+
+				:host([data-one-sided="left"]) .label-column.right {
+					display: none;
+				}
+
+				/* One-sided mode: right only */
+				:host([data-one-sided="right"]) .selector {
+					grid-template-columns: auto 1fr;
+				}
+
+				:host([data-one-sided="right"]) .label-column.left {
+					display: none;
+				}
 			</style>
 			<div class="selector" part="panel">
 				<div class="label-column left" id="leftColumn" part="labels label-row">
@@ -1091,15 +1119,47 @@ class DialSelector extends HTMLElement {
     return Array.from({ length: count }, (_, i) => this.roundToThousandths(start + ((end - start) * i) / (count - 1)));
   }
 
-  calculateAngles() {
-    this.leftCount = Math.ceil(this.OPTIONS.length / 2);
-    this.rightCount = this.OPTIONS.length - this.leftCount;
+  /**
+   * Gets the one-sided configuration from the attribute.
+   * @returns {'left' | 'right' | null} The side to show options on, or null for both sides
+   */
+  getOneSidedConfig() {
+    const value = this.getAttribute('one-sided');
+    if (!value) return null;
+    const normalized = value.toLowerCase().trim();
+    if (normalized === 'left' || normalized === 'inline-start') {
+      return 'left';
+    }
+    if (normalized === 'right' || normalized === 'inline-end') {
+      return 'right';
+    }
+    return null;
+  }
 
-    // Generate angles for right and left sides
-    this.spokeAngles = [
-      ...this.generateArcAngles(this.rightCount, ARCS.RIGHT_START, ARCS.RIGHT_END),
-      ...this.generateArcAngles(this.leftCount, ARCS.LEFT_START, ARCS.LEFT_END),
-    ];
+  calculateAngles() {
+    const oneSided = this.getOneSidedConfig();
+
+    if (oneSided === 'left') {
+      // All options on the left side
+      this.leftCount = this.OPTIONS.length;
+      this.rightCount = 0;
+      this.spokeAngles = this.generateArcAngles(this.leftCount, ARCS.LEFT_START, ARCS.LEFT_END);
+    } else if (oneSided === 'right') {
+      // All options on the right side
+      this.leftCount = 0;
+      this.rightCount = this.OPTIONS.length;
+      this.spokeAngles = this.generateArcAngles(this.rightCount, ARCS.RIGHT_START, ARCS.RIGHT_END);
+    } else {
+      // Default: split between both sides
+      this.leftCount = Math.ceil(this.OPTIONS.length / 2);
+      this.rightCount = this.OPTIONS.length - this.leftCount;
+
+      // Generate angles for right and left sides
+      this.spokeAngles = [
+        ...this.generateArcAngles(this.rightCount, ARCS.RIGHT_START, ARCS.RIGHT_END),
+        ...this.generateArcAngles(this.leftCount, ARCS.LEFT_START, ARCS.LEFT_END),
+      ];
+    }
   }
 
   createLabelsAndLines() {
@@ -1112,6 +1172,7 @@ class DialSelector extends HTMLElement {
     const rightColumn = this.shadowRoot.querySelector('#rightColumn');
     const lineContainer = this.shadowRoot.querySelector('#lineContainer');
     const advanceButton = this.shadowRoot.querySelector('#advanceButton');
+    const oneSided = this.getOneSidedConfig();
 
     // Clear existing content
     if (leftColumn) leftColumn.innerHTML = '';
@@ -1119,14 +1180,37 @@ class DialSelector extends HTMLElement {
     if (lineContainer) lineContainer.innerHTML = '';
     this.hitAreas = [];
 
+    // Update one-sided state on host element for CSS styling
+    if (oneSided) {
+      this.setAttribute('data-one-sided', oneSided);
+    } else {
+      this.removeAttribute('data-one-sided');
+    }
+
     this.OPTIONS.forEach((option, index) => {
-      // Left side gets first half (indices 0 to leftCount-1), right side gets second half (indices leftCount to length-1)
-      const isLeft = index < this.leftCount;
-      const container = isLeft ? leftColumn : rightColumn;
-      // Map option index to angle index:
-      // - Left side: options 0..leftCount-1 map to angles rightCount..rightCount+leftCount-1 (left angles in spokeAngles array)
-      // - Right side: options leftCount..length-1 map to angles 0..rightCount-1 (right angles in spokeAngles array)
-      const angleIndex = isLeft ? this.rightCount + index : index - this.leftCount;
+      let isLeft, angleIndex, container;
+
+      if (oneSided === 'left') {
+        // All options on the left side
+        isLeft = true;
+        container = leftColumn;
+        angleIndex = index;
+      } else if (oneSided === 'right') {
+        // All options on the right side
+        isLeft = false;
+        container = rightColumn;
+        angleIndex = index;
+      } else {
+        // Default: split between both sides
+        // Left side gets first half (indices 0 to leftCount-1), right side gets second half (indices leftCount to length-1)
+        isLeft = index < this.leftCount;
+        container = isLeft ? leftColumn : rightColumn;
+        // Map option index to angle index:
+        // - Left side: options 0..leftCount-1 map to angles rightCount..rightCount+leftCount-1 (left angles in spokeAngles array)
+        // - Right side: options leftCount..length-1 map to angles 0..rightCount-1 (right angles in spokeAngles array)
+        angleIndex = isLeft ? this.rightCount + index : index - this.leftCount;
+      }
+
       const angle = this.spokeAngles[angleIndex];
       const angleRad = this.degreesToRadians(angle);
 
