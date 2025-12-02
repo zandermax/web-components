@@ -69,10 +69,6 @@
 			--indicator-gradient: linear-gradient(to bottom, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
 		}
 
-		.custom-gradient {
-			--indicator-gradient: linear-gradient(to bottom, #ff0000, #0000ff);
-		}
-
 		.thick-lines {
 			--line-stroke-width: 3px;
 		}
@@ -225,22 +221,8 @@
 	</div>
 
 	<div class="dial-panel">
-		<h1>Rainbow Indicator</h1>
-		<dial-selector class="rainbow-indicator" onchange="console.log('Selected:', event.detail.value)">
-			<dial-option value="aux">AUX</dial-option>
-			<dial-option value="cd">CD</dial-option>
-			<dial-option value="phono-1">PHONO-1</dial-option>
-			<dial-option value="phono-2">PHONO-2</dial-option>
-			<dial-option value="stream">STREAM</dial-option>
-			<dial-option value="tape">TAPE</dial-option>
-			<dial-option value="tuner">TUNER</dial-option>
-			<dial-option value="tv">TV</dial-option>
-		</dial-selector>
-	</div>
-
-	<div class="dial-panel">
 		<h1>Custom Gradient</h1>
-		<dial-selector class="custom-gradient" onchange="console.log('Selected:', event.detail.value)">
+		<dial-selector class="rainbow-indicator" onchange="console.log('Selected:', event.detail.value)">
 			<dial-option value="aux">AUX</dial-option>
 			<dial-option value="cd">CD</dial-option>
 			<dial-option value="phono-1">PHONO-1</dial-option>

@@ -549,9 +549,21 @@ class DialSelector extends HTMLElement {
       const delayMs = parseFloat(timeSelectionDelay);
       const delaySeconds = this.roundToThousandths(Math.max(0, delayMs) / 1000);
       this.style.setProperty('--time-selection-delay', `${delaySeconds}s`);
+
+      // When delay is 0, disable all animations by setting transitions to none
+      if (delayMs === 0) {
+        this.style.setProperty('--indicator-transition', 'none');
+        this.style.setProperty('--line-transition', 'none');
+      } else {
+        // Restore default transitions when delay is non-zero
+        this.style.removeProperty('--indicator-transition');
+        this.style.removeProperty('--line-transition');
+      }
     } else {
       // Reset to default if attribute is removed
       this.style.removeProperty('--time-selection-delay');
+      this.style.removeProperty('--indicator-transition');
+      this.style.removeProperty('--line-transition');
     }
   }
 
@@ -1215,13 +1227,20 @@ class DialSelector extends HTMLElement {
       const spokeStartY = this.roundToThousandths(centerY + Math.sin(angleRad) * knobRadius);
 
       // Calculate intersection point
-      const { intersectX, intersectY } = this.calculateSpokeIntersection(
+      let { intersectX, intersectY } = this.calculateSpokeIntersection(
         angleRad,
         spokeStartX,
         spokeStartY,
         labelY,
         isLeft
       );
+
+      // Clamp intersection to not go past the label (fixes issue with nearly horizontal spokes on large knobs)
+      if (isLeft) {
+        intersectX = Math.max(intersectX, labelX + this.horizontalLineEndOffset);
+      } else {
+        intersectX = Math.min(intersectX, labelX - this.horizontalLineEndOffset);
+      }
 
       // Calculate horizontal line end point
       const horizontalEndX = this.calculateHorizontalLineEnd(labelX, intersectX, isLeft);
