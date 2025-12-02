@@ -437,6 +437,31 @@
 		</dial-selector>
 	</div>
 
+	<div class="dial-panel">
+		<h1>Custom mode: spokes</h1>
+		<dial-selector mode="spokes" onchange="console.log('Selected:', event.detail.value)">
+			<dial-option value="option-1">Option 1</dial-option>
+			<dial-option value="option-2">Option 2</dial-option>
+			<dial-option value="option-3">Option 3</dial-option>
+			<dial-option value="option-4">Option 4</dial-option>
+			<dial-option value="option-5">Option 5</dial-option>
+			<dial-option value="option-6">Option 6</dial-option>
+			<dial-option value="option-7">Option 7</dial-option>
+			<dial-option value="option-8">Option 8</dial-option>
+		</dial-selector>
+	</div>
+
+	<div class="dial-panel">
+		<h1>Custom mode: spokes (5 Options)</h1>
+		<dial-selector mode="spokes" onchange="console.log('Selected:', event.detail.value)">
+			<dial-option value="aux">AUX</dial-option>
+			<dial-option value="cd">CD</dial-option>
+			<dial-option value="phono-1">PHONO-1</dial-option>
+			<dial-option value="phono-2">PHONO-2</dial-option>
+			<dial-option value="stream">STREAM</dial-option>
+		</dial-selector>
+	</div>
+
 </body>
 
 </html>

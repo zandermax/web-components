@@ -5,6 +5,11 @@
  *
  * `center-indicator`: The center indicator offset as a percentage. Example: "50" or "50%"
  *
+ * `mode`: Sets the layout mode for the dial selector. Values:
+ *         - "spokes": Positions labels radially around the dial at the ends of spoke lines,
+ *           eliminating horizontal line segments and side columns for a more space-efficient layout.
+ *           Labels remain horizontal for readability.
+ *
  * `length-indicator`: The length of the indicator as a percentage of radius-outer. Example: "100" or "100%"
  *
  * `onchange`: JavaScript function code executed when selection changes. Example: "console.log(event.detail.value)"
@@ -16,7 +21,15 @@
  * `value`: The initial selected value. Must match the value attribute of a child dial-option element.
  *
  */
-const ATTRIBUTES = ['center-indicator', 'length-indicator', 'onchange', 'one-sided', 'time-selection-delay', 'value'];
+const ATTRIBUTES = [
+  'center-indicator',
+  'length-indicator',
+  'mode',
+  'onchange',
+  'one-sided',
+  'time-selection-delay',
+  'value',
+];
 
 const FULL_CIRCLE_DEGREES = 360;
 
@@ -407,6 +420,7 @@ class DialSelector extends HTMLElement {
     const ATTRIBUTE_HANDLERS = {
       'length-indicator': () => this.updateIndicatorLength(),
       'center-indicator': () => this.updateCenterIndicator(),
+      mode: () => this.handleModeChange(),
       'time-selection-delay': () => this.updateSelectionDelay(),
       'one-sided': () => this.handleOneSidedChange(),
       value: () => this.handleValueChange(newValue),
@@ -426,6 +440,13 @@ class DialSelector extends HTMLElement {
   handleOneSidedChange() {
     if (this.isInitialized) {
       // Rebuild component when one-sided mode changes
+      this.rebuildComponent();
+    }
+  }
+
+  handleModeChange() {
+    if (this.isInitialized) {
+      // Rebuild component when mode changes
       this.rebuildComponent();
     }
   }
@@ -1085,6 +1106,27 @@ class DialSelector extends HTMLElement {
 				:host([data-one-sided="right"]) .label-column.left {
 					display: none;
 				}
+
+				/* Spokes mode styles */
+				:host([mode="spokes"]) .selector {
+					grid-template-columns: auto;
+					justify-items: center;
+				}
+
+				:host([mode="spokes"]) .label-column {
+					display: none;
+				}
+
+				:host([mode="spokes"]) .knob-wrap {
+					/* Ensure adequate size for radial labels */
+					overflow: visible;
+				}
+
+				:host([mode="spokes"]) .dial-label.spokes {
+					position: absolute;
+					white-space: nowrap;
+					padding: clamp(2px, 0.5vw, 4px) clamp(4px, 1vw, 8px);
+				}
 			</style>
 			<div class="selector" part="panel">
 				<div class="label-column left" id="leftColumn" part="labels label-row">
@@ -1117,6 +1159,14 @@ class DialSelector extends HTMLElement {
       return [this.roundToThousandths((start + end) / 2)];
     }
     return Array.from({ length: count }, (_, i) => this.roundToThousandths(start + ((end - start) * i) / (count - 1)));
+  }
+
+  /**
+   * Checks if spokes mode is enabled.
+   * @returns {boolean} True if mode="spokes" attribute is set
+   */
+  isSpokesMode() {
+    return this.getAttribute('mode') === 'spokes';
   }
 
   /**
@@ -1171,13 +1221,19 @@ class DialSelector extends HTMLElement {
     const leftColumn = this.shadowRoot.querySelector('#leftColumn');
     const rightColumn = this.shadowRoot.querySelector('#rightColumn');
     const lineContainer = this.shadowRoot.querySelector('#lineContainer');
+    const knobWrap = this.shadowRoot.querySelector('.knob-wrap');
     const advanceButton = this.shadowRoot.querySelector('#advanceButton');
     const oneSided = this.getOneSidedConfig();
+    const isSpokes = this.isSpokesMode();
 
     // Clear existing content
     if (leftColumn) leftColumn.innerHTML = '';
     if (rightColumn) rightColumn.innerHTML = '';
     if (lineContainer) lineContainer.innerHTML = '';
+    // Clear spokes mode labels from knob-wrap if any
+    if (knobWrap) {
+      knobWrap.querySelectorAll('.dial-label').forEach((el) => el.remove());
+    }
     this.hitAreas = [];
 
     // Update one-sided state on host element for CSS styling
@@ -1193,18 +1249,18 @@ class DialSelector extends HTMLElement {
       if (oneSided === 'left') {
         // All options on the left side
         isLeft = true;
-        container = leftColumn;
+        container = isSpokes ? knobWrap : leftColumn;
         angleIndex = index;
       } else if (oneSided === 'right') {
         // All options on the right side
         isLeft = false;
-        container = rightColumn;
+        container = isSpokes ? knobWrap : rightColumn;
         angleIndex = index;
       } else {
         // Default: split between both sides
         // Left side gets first half (indices 0 to leftCount-1), right side gets second half (indices leftCount to length-1)
         isLeft = index < this.leftCount;
-        container = isLeft ? leftColumn : rightColumn;
+        container = isSpokes ? knobWrap : isLeft ? leftColumn : rightColumn;
         // Map option index to angle index:
         // - Left side: options 0..leftCount-1 map to angles rightCount..rightCount+leftCount-1 (left angles in spokeAngles array)
         // - Right side: options leftCount..length-1 map to angles 0..rightCount-1 (right angles in spokeAngles array)
@@ -1214,14 +1270,12 @@ class DialSelector extends HTMLElement {
       const angle = this.spokeAngles[angleIndex];
       const angleRad = this.degreesToRadians(angle);
 
-      // Calculate vertical position based on angle
-      // The knob center is at 50% of the column height
-      // We want labels positioned along the vertical arc where the indicator points
-      const topPosition = this.calculateLabelTopPosition(angleRad);
-
       // Create label
       const label = document.createElement('label');
       label.className = 'dial-label';
+      if (isSpokes) {
+        label.classList.add('spokes');
+      }
       label.setAttribute('part', 'label');
 
       // Use HTML content if available, otherwise fall back to text
@@ -1234,13 +1288,21 @@ class DialSelector extends HTMLElement {
       label.dataset.index = index;
       label.dataset.angle = angle;
       label.dataset.value = option.value;
+      label.dataset.isLeft = isLeft ? 'true' : 'false';
 
-      // Position label vertically based on angle
-      label.style.top = `${this.roundToThousandths(topPosition)}px`;
-      if (isLeft) {
-        label.style.right = '0';
+      if (isSpokes) {
+        // Spokes mode: position will be set in updateSpokesLabelPositions()
+        // Store angle data for positioning
+        label.style.position = 'absolute';
       } else {
-        label.style.left = '0';
+        // Standard mode: Calculate vertical position based on angle
+        const topPosition = this.calculateLabelTopPosition(angleRad);
+        label.style.top = `${this.roundToThousandths(topPosition)}px`;
+        if (isLeft) {
+          label.style.right = '0';
+        } else {
+          label.style.left = '0';
+        }
       }
 
       label.addEventListener('click', () => this.selectIndex(index));
@@ -1288,15 +1350,62 @@ class DialSelector extends HTMLElement {
         this.selectIndex((this.currentIndex + 1) % this.OPTIONS.length);
       });
     }
+
+    // Position spokes mode labels after they're added to DOM
+    if (isSpokes) {
+      this.updateSpokesLabelPositions();
+    }
   }
 
   updateLabelPositions() {
-    // Update label positions based on current dimensions
+    if (this.isSpokesMode()) {
+      this.updateSpokesLabelPositions();
+    } else {
+      // Update label positions based on current dimensions (standard mode)
+      this.labels.forEach((label) => {
+        const angle = parseFloat(label.dataset.angle);
+        const angleRad = this.degreesToRadians(angle);
+        const topPosition = this.calculateLabelTopPosition(angleRad);
+        label.style.top = `${this.roundToThousandths(topPosition)}px`;
+      });
+    }
+  }
+
+  updateSpokesLabelPositions() {
+    // Get knob dimensions for positioning
+    const computedStyle = getComputedStyle(this);
+    const radiusOuter = parseFloat(computedStyle.getPropertyValue('--radius-outer').trim()) || KNOB.RADIUS_OUTER;
+    const centerX = this.knobCenter;
+    const centerY = this.knobCenter;
+
+    // Spoke length for spokes mode (distance from knob edge to label anchor)
+    const spokeLength = this.maxSpokeLength;
+
     this.labels.forEach((label) => {
       const angle = parseFloat(label.dataset.angle);
       const angleRad = this.degreesToRadians(angle);
-      const topPosition = this.calculateLabelTopPosition(angleRad);
-      label.style.top = `${this.roundToThousandths(topPosition)}px`;
+      const isLeft = label.dataset.isLeft === 'true';
+
+      // Calculate position at end of spoke (outside knob radius)
+      const labelAnchorX = this.roundToThousandths(centerX + Math.cos(angleRad) * (radiusOuter + spokeLength));
+      const labelAnchorY = this.roundToThousandths(centerY + Math.sin(angleRad) * (radiusOuter + spokeLength));
+
+      // Position label - horizontal text, anchored appropriately based on side
+      label.style.top = `${labelAnchorY}px`;
+
+      if (isLeft) {
+        // Left side: text aligns right, position to the left of anchor point
+        label.style.right = 'auto';
+        label.style.left = `${labelAnchorX}px`;
+        label.style.transform = 'translate(-100%, -50%)';
+        label.style.textAlign = 'right';
+      } else {
+        // Right side: text aligns left, position to the right of anchor point
+        label.style.left = `${labelAnchorX}px`;
+        label.style.right = 'auto';
+        label.style.transform = 'translate(0%, -50%)';
+        label.style.textAlign = 'left';
+      }
     });
   }
 
@@ -1350,6 +1459,7 @@ class DialSelector extends HTMLElement {
     const knobWrap = this.shadowRoot.querySelector('.knob-wrap');
     if (!knobWrap) return;
 
+    const isSpokes = this.isSpokesMode();
     const centerX = this.knobCenter;
     const centerY = this.knobCenter;
     // Get the actual knob radius from CSS variable, with fallback to default
@@ -1357,9 +1467,18 @@ class DialSelector extends HTMLElement {
     const radiusOuter = computedStyle.getPropertyValue('--radius-outer').trim() || '90px';
     const knobRadius = this.roundToThousandths(parseFloat(radiusOuter));
 
+    if (isSpokes) {
+      this.updateSpokesLines(centerX, centerY, knobRadius);
+    } else {
+      this.updateStandardLines(knobWrap, centerX, centerY, knobRadius);
+    }
+  }
+
+  updateStandardLines(knobWrap, centerX, centerY, knobRadius) {
+    const knobWrapRect = knobWrap.getBoundingClientRect();
+
     this.labels.forEach((label, index) => {
       const labelRect = label.getBoundingClientRect();
-      const knobWrapRect = knobWrap.getBoundingClientRect();
 
       const angle = parseFloat(label.dataset.angle);
       const angleRad = this.degreesToRadians(angle);
@@ -1397,6 +1516,34 @@ class DialSelector extends HTMLElement {
 
       // Create polyline: label -> horizontal end -> intersection -> spoke start
       const points = `${labelX},${labelY} ${horizontalEndX},${horizontalEndY} ${intersectX},${intersectY} ${spokeStartX},${spokeStartY}`;
+      this.lines[index].setAttribute('points', points);
+
+      // Update hit area with same points
+      if (this.hitAreas[index]) {
+        this.hitAreas[index].setAttribute('points', points);
+      }
+    });
+  }
+
+  updateSpokesLines(centerX, centerY, knobRadius) {
+    // In spokes mode, draw straight 2-point spokes from knob edge to near the label
+    const spokeLength = this.maxSpokeLength;
+    const labelGap = this.horizontalLineEndOffset; // Small gap between spoke end and label
+
+    this.labels.forEach((label, index) => {
+      const angle = parseFloat(label.dataset.angle);
+      const angleRad = this.degreesToRadians(angle);
+
+      // Spoke start point at knob edge
+      const spokeStartX = this.roundToThousandths(centerX + Math.cos(angleRad) * knobRadius);
+      const spokeStartY = this.roundToThousandths(centerY + Math.sin(angleRad) * knobRadius);
+
+      // Spoke end point (near label, with small gap)
+      const spokeEndX = this.roundToThousandths(centerX + Math.cos(angleRad) * (knobRadius + spokeLength - labelGap));
+      const spokeEndY = this.roundToThousandths(centerY + Math.sin(angleRad) * (knobRadius + spokeLength - labelGap));
+
+      // Create 2-point line: spoke start -> spoke end
+      const points = `${spokeStartX},${spokeStartY} ${spokeEndX},${spokeEndY}`;
       this.lines[index].setAttribute('points', points);
 
       // Update hit area with same points
