@@ -160,11 +160,12 @@ class DialSelector extends HTMLElement {
         const labelText = (option.textContent || '').trim();
         const value = option.getAttribute('value') || labelText || String(index);
         const label = labelText || value;
-        return { value, label };
+        const htmlContent = option.innerHTML.trim() || null;
+        return { value, label, htmlContent };
       });
     } else {
       // Fallback to defaults if no <dial-option> children
-      this.OPTIONS = DEFAULT_OPTIONS.map((opt) => ({ value: opt, label: opt }));
+      this.OPTIONS = DEFAULT_OPTIONS.map((opt) => ({ value: opt, label: opt, htmlContent: null }));
     }
   }
 
@@ -949,6 +950,43 @@ class DialSelector extends HTMLElement {
 					color: var(--color-selection);
 				}
 
+				/* Media sizing inside labels */
+				.dial-label img,
+				.dial-label svg {
+					max-height: 1.5em;
+					max-width: 3em;
+					vertical-align: middle;
+					object-fit: contain;
+					/* Allow animation control via CSS custom properties on ::part(label) / ::part(label-active) */
+					animation: var(--label-icon-animation, none);
+					opacity: var(--label-icon-opacity, 1);
+					transform: var(--label-icon-transform, none);
+					transition: var(--label-icon-transition, opacity 0.3s, transform 0.3s);
+				}
+
+				/* Built-in keyframes for icon animations */
+				@keyframes spin {
+					from { transform: rotate(0deg); }
+					to { transform: rotate(360deg); }
+				}
+				@keyframes pulse {
+					0%, 100% { transform: scale(1); }
+					50% { transform: scale(1.3); }
+				}
+				@keyframes wiggle {
+					0%, 100% { transform: rotate(0deg); }
+					25% { transform: rotate(-15deg); }
+					75% { transform: rotate(15deg); }
+				}
+				@keyframes bounce {
+					0%, 100% { transform: translateY(0); }
+					50% { transform: translateY(-25%); }
+				}
+				@keyframes blink {
+					0%, 100% { opacity: 1; }
+					50% { opacity: 0.2; }
+				}
+
 				#lineContainer {
 					position: absolute;
 					inset: 0;
@@ -1101,7 +1139,14 @@ class DialSelector extends HTMLElement {
       const label = document.createElement('label');
       label.className = 'dial-label';
       label.setAttribute('part', 'label');
-      label.textContent = option.label;
+
+      // Use HTML content if available, otherwise fall back to text
+      if (option.htmlContent) {
+        label.innerHTML = option.htmlContent;
+      } else {
+        label.textContent = option.label;
+      }
+
       label.dataset.index = index;
       label.dataset.angle = angle;
       label.dataset.value = option.value;
