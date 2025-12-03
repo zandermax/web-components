@@ -49,7 +49,7 @@
 	</div>
 
 	<div class="dial-panel">
-		<h1>350ms delay</h1>
+		<h1>Custom delay</h1>
 		<dial-selector time-selection-delay="350" onchange="handleDialChange(event)">
 			<dial-option value="aux">AUX</dial-option>
 			<dial-option value="cd">CD</dial-option>
@@ -459,6 +459,58 @@
 			<dial-option value="phono-1">PHONO-1</dial-option>
 			<dial-option value="phono-2">PHONO-2</dial-option>
 			<dial-option value="stream">STREAM</dial-option>
+		</dial-selector>
+	</div>
+
+	<div class="dial-panel">
+		<h1>Custom Line Lengths</h1>
+		<dial-selector onchange="console.log('Selected:', event.detail.value)">
+			<dial-option value="short-1" line-length="30">Short (30px)</dial-option>
+			<dial-option value="short-2" line-length="50">Medium-short (50px)</dial-option>
+			<dial-option value="default-1">Default (100px)</dial-option>
+			<dial-option value="default-2">Default (100px)</dial-option>
+			<dial-option value="long-1" line-length="150">Long (150px)</dial-option>
+			<dial-option value="long-2" line-length="200">Extra long (200px)</dial-option>
+		</dial-selector>
+	</div>
+
+	<div class="dial-panel">
+		<h1>Staggered Line Lengths</h1>
+		<dial-selector onchange="console.log('Selected:', event.detail.value)">
+			<dial-option value="opt-1" line-length="40">40 px</dial-option>
+			<dial-option value="opt-2" line-length="80">80 px</dial-option>
+			<dial-option value="opt-3" line-length="120">120 px</dial-option>
+			<dial-option value="opt-4" line-length="160">160 px</dial-option>
+			<dial-option value="opt-5" line-length="0">0 px</dial-option>
+			<dial-option value="opt-6" line-length="40">40 px</dial-option>
+			<dial-option value="opt-7" line-length="80">80 px</dial-option>
+			<dial-option value="opt-8" line-length="120">120 px</dial-option>
+		</dial-selector>
+	</div>
+
+	<div class="dial-panel">
+		<h1>Mixed line lengths and unset line lengths</h1>
+		<dial-selector onchange="console.log('Selected:', event.detail.value)">
+			<dial-option value="opt-1" line-length="40">40 px</dial-option>
+			<dial-option value="opt-2">Default</dial-option>
+			<dial-option value="opt-3">Default</dial-option>
+			<dial-option value="opt-4">Default</dial-option>
+			<dial-option value="opt-5">Default</dial-option>
+			<dial-option value="opt-6" line-length="160">160 px</dial-option>
+			<dial-option value="opt-7">Default</dial-option>
+			<dial-option value="opt-8">Default</dial-option>
+		</dial-selector>
+	</div>
+
+	<div class="dial-panel">
+		<h1>Long Labels (Overflow Handling)</h1>
+		<dial-selector onchange="console.log('Selected:', event.detail.value)">
+			<dial-option value="opt-1">This breaks below the line</dial-option>
+			<dial-option value="opt-2">Short label</dial-option>
+			<dial-option value="opt-3">This breaks above the line</dial-option>
+			<dial-option value="opt-4">This breaks above the line</dial-option>
+			<dial-option value="opt-5">Short label</dial-option>
+			<dial-option value="opt-6">This breaks above the line</dial-option>
 		</dial-selector>
 	</div>
 

@@ -3,14 +3,10 @@
 /**
  * All attributes that can be set on the component.
  *
- * `center-indicator`: The center indicator offset as a percentage. Example: "50" or "50%"
- *
  * `mode`: Sets the layout mode for the dial selector. Values:
  *         - "spokes": Positions labels radially around the dial at the ends of spoke lines,
  *           eliminating horizontal line segments and side columns for a more space-efficient layout.
  *           Labels remain horizontal for readability.
- *
- * `length-indicator`: The length of the indicator as a percentage of radius-outer. Example: "100" or "100%"
  *
  * `onchange`: JavaScript function code executed when selection changes. Example: "console.log(event.detail.value)"
  *
@@ -21,15 +17,7 @@
  * `value`: The initial selected value. Must match the value attribute of a child dial-option element.
  *
  */
-const ATTRIBUTES = [
-  'center-indicator',
-  'length-indicator',
-  'mode',
-  'onchange',
-  'one-sided',
-  'time-selection-delay',
-  'value',
-];
+const ATTRIBUTES = ['mode', 'onchange', 'one-sided', 'time-selection-delay', 'value'];
 
 const FULL_CIRCLE_DEGREES = 360;
 
@@ -71,24 +59,11 @@ const LINE = {
 };
 
 const INDICATOR = {
-  // Note: width and length are the bounding box of the indicator, not the actual length of the indicator.
-  WIDTH: 10,
-  LENGTH: 60, // Indicator length at default knob size
-  CENTER: 15, // Center indicator offset (100% = 15px, default is 0 = 0%)
-};
-
-const CIRCLE = {
-  WIDTH_OUTER: 4,
-  WIDTH_INNER: 2,
+  WIDTH: 10, // Default indicator width
 };
 
 const HIT_AREA = {
   STROKE_WIDTH: 20,
-};
-
-const CONSTRAINTS = {
-  MIN_KNOB_WRAP_SIZE: 200,
-  MAX_KNOB_WRAP_SIZE: 600,
 };
 
 const OPACITY = {
@@ -140,7 +115,7 @@ class DialSelector extends HTMLElement {
     this.childObserver = null;
     this.OPTIONS = []; // Array of { value: string, label: string }
     this._childOptions = null; // Cache for child options read before shadow DOM
-    // Dynamic dimensions (calculated based on container size)
+    // Dynamic dimensions (read from CSS computed styles)
     this.knobWrapSize = KNOB.WRAP_SIZE;
     this.knobCenter = KNOB.WRAP_SIZE / 2;
     this.labelColumnHeight = LABEL.COLUMN_HEIGHT;
@@ -150,18 +125,6 @@ class DialSelector extends HTMLElement {
     this.hitAreaStrokeWidth = HIT_AREA.STROKE_WIDTH;
     this.horizontalLineEndOffset = LINE.HORIZONTAL_END_OFFSET;
     this.indicatorWidth = INDICATOR.WIDTH;
-    // Percentage values for attributes (default to 100% = default size)
-    this.percentages = {
-      indicatorLength: 100, // Default to 100% (full length)
-      centerIndicator: 0, // Default is 0 (no offset)
-      radiusOuter: 100,
-      radiusInner: 100,
-      widthOuterCircle: 100,
-      widthInnerCircle: 100,
-      lineThickness: 100,
-    };
-    // Cache for original CSS values (read once before setting inline styles)
-    this.cssValuesCache = null;
   }
 
   static observedAttributes = ATTRIBUTES;
@@ -176,43 +139,18 @@ class DialSelector extends HTMLElement {
         const value = option.getAttribute('value') || labelText || String(index);
         const label = labelText || value;
         const htmlContent = option.innerHTML.trim() || null;
-        return { value, label, htmlContent };
+        const lineLengthAttr = option.getAttribute('line-length');
+        const lineLength = lineLengthAttr !== null ? parseFloat(lineLengthAttr) : null;
+        return { value, label, htmlContent, lineLength };
       });
     } else {
       // Fallback to defaults if no <dial-option> children
-      this.OPTIONS = DEFAULT_OPTIONS.map((opt) => ({ value: opt, label: opt, htmlContent: null }));
+      this.OPTIONS = DEFAULT_OPTIONS.map((opt) => ({ value: opt, label: opt, htmlContent: null, lineLength: null }));
     }
   }
 
   initializeAttributes() {
-    // Cache original CSS values before setting any inline styles
-    if (this.cssValuesCache === null) {
-      this.cssValuesCache = {};
-      const computedStyle = getComputedStyle(this);
-      const propertiesToCache = [
-        '--radius-outer',
-        '--radius-inner',
-        '--width-outer-circle',
-        '--width-inner-circle',
-        '--line-stroke-width',
-        '--component-height',
-        '--component-width',
-        '--indicator-color',
-        '--color-selection',
-        '--color-inner-circle',
-        '--color-outer-circle',
-        '--font-size',
-        '--font-family',
-      ];
-      propertiesToCache.forEach((prop) => {
-        const value = computedStyle.getPropertyValue(prop).trim();
-        this.cssValuesCache[prop] = value || null;
-      });
-    }
-    this.updateIndicatorLength();
-    this.updateCenterIndicator();
     this.updateSelectionDelay();
-    this.updateLineThickness();
     this.updateDimensions();
   }
 
@@ -299,67 +237,6 @@ class DialSelector extends HTMLElement {
 
   // Utility methods
   /**
-   * Parses a percentage value from an attribute.
-   * @param {string} attrName - The attribute name to read
-   * @param {number} defaultValue - Default value if attribute is missing or invalid
-   * @returns {number} The parsed percentage value
-   */
-  parsePercentage(attrName, defaultValue = 100) {
-    const value = this.getAttribute(attrName);
-    if (!value) return defaultValue;
-    const percentage = parseFloat(value.replace('%', ''));
-    return !isNaN(percentage) && percentage >= 0 ? this.roundToThousandths(percentage) : defaultValue;
-  }
-
-  /**
-   * Reads a CSS custom property and parses it as a percentage.
-   * @param {string} cssVarName - The CSS custom property name (e.g., '--radius-outer')
-   * @param {number} defaultValue - Default value if property is missing or invalid
-   * @returns {number} The parsed percentage value
-   */
-  parsePercentageFromCSS(cssVarName, defaultValue = 100) {
-    const computedStyle = getComputedStyle(this);
-    const value = computedStyle.getPropertyValue(cssVarName).trim();
-    if (!value) return defaultValue;
-    // Remove 'px' or '%' and parse
-    const numericValue = parseFloat(value.replace(/[px%]/g, ''));
-    return !isNaN(numericValue) && numericValue >= 0 ? this.roundToThousandths(numericValue) : defaultValue;
-  }
-
-  /**
-   * Reads a CSS custom property value as a string from the cached original stylesheet values.
-   * @param {string} cssVarName - The CSS custom property name
-   * @param {string} defaultValue - Default value if property is missing
-   * @returns {string} The CSS property value
-   */
-  getCSSProperty(cssVarName, defaultValue = '') {
-    // Return cached value if available
-    if (this.cssValuesCache && cssVarName in this.cssValuesCache) {
-      return this.cssValuesCache[cssVarName] || defaultValue;
-    }
-    // Fallback to reading from computed style (for properties not in cache)
-    const computedStyle = getComputedStyle(this);
-    const value = computedStyle.getPropertyValue(cssVarName).trim();
-    return value || defaultValue;
-  }
-
-  /**
-   * Updates a CSS custom property from an attribute value.
-   * @param {string} attrName - The attribute name to read
-   * @param {string} cssVarName - The CSS custom property name (e.g., '--indicator-color')
-   * @param {Function|null} transform - Optional transform function to apply to the value
-   */
-  updateCSSProperty(attrName, cssVarName, transform = null) {
-    const value = this.getAttribute(attrName);
-    if (value) {
-      const finalValue = transform ? transform(value) : value;
-      this.style.setProperty(cssVarName, finalValue);
-    } else {
-      this.style.removeProperty(cssVarName);
-    }
-  }
-
-  /**
    * Executes a callback with transitions temporarily disabled.
    * @param {Function} callback - The function to execute without transitions
    */
@@ -418,8 +295,6 @@ class DialSelector extends HTMLElement {
 
   handleAttributeChange({ name, oldValue, newValue }) {
     const ATTRIBUTE_HANDLERS = {
-      'length-indicator': () => this.updateIndicatorLength(),
-      'center-indicator': () => this.updateCenterIndicator(),
       mode: () => this.handleModeChange(),
       'time-selection-delay': () => this.updateSelectionDelay(),
       'one-sided': () => this.handleOneSidedChange(),
@@ -531,47 +406,9 @@ class DialSelector extends HTMLElement {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['value'],
+      attributeFilter: ['value', 'line-length'],
       characterData: true,
     });
-  }
-
-  updateLineThickness() {
-    // Read line thickness from CSS custom property --line-stroke-width
-    // If not set, use default percentage of 100%
-    const lineStrokeWidth = this.getCSSProperty('--line-stroke-width');
-    if (lineStrokeWidth) {
-      // Parse pixel value and convert to percentage of base
-      const pixelMatch = lineStrokeWidth.match(/^(\d+(?:\.\d+)?)px$/);
-      if (pixelMatch) {
-        const pixelValue = parseFloat(pixelMatch[1]);
-        this.percentages.lineThickness = this.roundToThousandths((pixelValue / LINE.STROKE_WIDTH) * 100);
-      } else {
-        // If it's a percentage or other value, try to parse as percentage
-        this.percentages.lineThickness = this.parsePercentageFromCSS('--line-stroke-width', 100);
-      }
-    } else {
-      this.percentages.lineThickness = 100; // Default
-    }
-  }
-
-  updateIndicatorLength() {
-    // Parse as percentage (0+), with or without % sign
-    // Allow values > 100% for longer indicators
-    this.percentages.indicatorLength = this.parsePercentage('length-indicator', 100);
-    // Trigger dimension update to recalculate scaled indicator length
-    if (this.isInitialized) {
-      this.updateDimensions();
-    }
-  }
-
-  updateCenterIndicator() {
-    // Parse as percentage (0-100+), with or without % sign
-    this.percentages.centerIndicator = this.parsePercentage('center-indicator', 0);
-    // Trigger dimension update to recalculate scaled center-indicator
-    if (this.isInitialized) {
-      this.updateDimensions();
-    }
   }
 
   updateSelectionDelay() {
@@ -623,42 +460,9 @@ class DialSelector extends HTMLElement {
   }
 
   calculateScale() {
-    const containerWidth = this.getBoundingClientRect().width;
-    const containerHeight = this.getBoundingClientRect().height;
-    const selector = this.shadowRoot.querySelector('.selector');
     const knobWrap = this.shadowRoot.querySelector('.knob-wrap');
-    const heightCSS = this.getCSSProperty('--component-height');
-    const hasFixedHeight = !!heightCSS && heightCSS !== 'auto';
 
-    // Calculate available space (accounting for gaps)
-    const computedStyle = getComputedStyle(selector);
-    const gap = this.roundToThousandths(parseFloat(computedStyle.gap) || 0);
-    const availableWidth = this.roundToThousandths(containerWidth - gap * 2); // Two gaps between three columns
-
-    // Target knob size: aim for about 40-50% of container width, but respect min/max
-    // If height is set, also consider height constraints
-    let targetSize = this.roundToThousandths(
-      Math.min(Math.max(CONSTRAINTS.MIN_KNOB_WRAP_SIZE, availableWidth * 0.45), CONSTRAINTS.MAX_KNOB_WRAP_SIZE)
-    );
-
-    if (hasFixedHeight && containerHeight > 0) {
-      // When height is fixed, ensure knob fits within height
-      // Knob is square, so use the smaller of width-based or height-based size
-      const heightBasedSize = this.roundToThousandths(containerHeight);
-      targetSize = this.roundToThousandths(Math.min(targetSize, heightBasedSize));
-      // Still respect min/max
-      targetSize = this.roundToThousandths(
-        Math.min(Math.max(CONSTRAINTS.MIN_KNOB_WRAP_SIZE, targetSize), CONSTRAINTS.MAX_KNOB_WRAP_SIZE)
-      );
-    }
-
-    // Set the knob-wrap size via CSS variable on host
-    this.style.setProperty('--knob-wrap-size', `${this.roundToThousandths(targetSize)}px`);
-
-    // Force a reflow to ensure the browser has applied the size
-    void knobWrap.offsetWidth;
-
-    // Measure the actual rendered size (may differ slightly due to grid constraints)
+    // Measure the actual rendered size from CSS
     const actualSize = knobWrap.getBoundingClientRect().width;
 
     this.knobWrapSize = this.roundToThousandths(actualSize);
@@ -668,154 +472,59 @@ class DialSelector extends HTMLElement {
     return this.roundToThousandths(this.knobWrapSize / KNOB.WRAP_SIZE);
   }
 
-  updateKnobRadii(scale) {
-    // Get the base radius values from CSS custom properties
-    // Read as percentages relative to base values
-    const radiusOuterCSS = this.getCSSProperty('--radius-outer');
-    const radiusInnerCSS = this.getCSSProperty('--radius-inner');
+  updateKnobRadii() {
+    // Read the actual radius values from CSS computed styles
+    const computedStyle = getComputedStyle(this);
+    const radiusOuterCSS = computedStyle.getPropertyValue('--radius-outer').trim();
+    const radiusInnerCSS = computedStyle.getPropertyValue('--radius-inner').trim();
 
-    if (radiusOuterCSS) {
-      // Parse pixel value and convert to percentage of base
-      const pixelMatch = radiusOuterCSS.match(/^(\d+(?:\.\d+)?)px$/);
-      if (pixelMatch) {
-        const pixelValue = parseFloat(pixelMatch[1]);
-        // Convert to percentage based on unscaled base value
-        this.percentages.radiusOuter = this.roundToThousandths((pixelValue / KNOB.RADIUS_OUTER) * 100);
-      } else {
-        this.percentages.radiusOuter = this.parsePercentageFromCSS('--radius-outer', 100);
-      }
-    } else {
-      this.percentages.radiusOuter = 100; // Default
-    }
-
-    if (radiusInnerCSS) {
-      const pixelMatch = radiusInnerCSS.match(/^(\d+(?:\.\d+)?)px$/);
-      if (pixelMatch) {
-        const pixelValue = parseFloat(pixelMatch[1]);
-        this.percentages.radiusInner = this.roundToThousandths((pixelValue / KNOB.RADIUS_INNER) * 100);
-      } else {
-        this.percentages.radiusInner = this.parsePercentageFromCSS('--radius-inner', 100);
-      }
-    } else {
-      this.percentages.radiusInner = 100; // Default
-    }
-
-    // Calculate base radii from percentages
-    const baseRadiusOuter = this.roundToThousandths((KNOB.RADIUS_OUTER * this.percentages.radiusOuter) / 100);
-    const baseRadiusInner = this.roundToThousandths((KNOB.RADIUS_INNER * this.percentages.radiusInner) / 100);
-
-    // Scale the radii based on the current scale factor
-    const scaledRadiusOuter = this.roundToThousandths(baseRadiusOuter * scale);
-    const scaledRadiusInner = this.roundToThousandths(baseRadiusInner * scale);
-
-    // Update knob size CSS variables (for responsive scaling)
-    this.style.setProperty('--radius-outer', `${scaledRadiusOuter}px`);
-    this.style.setProperty('--radius-inner', `${scaledRadiusInner}px`);
+    // Parse the CSS values (expecting px values)
+    const scaledRadiusOuter = this.roundToThousandths(parseFloat(radiusOuterCSS) || KNOB.RADIUS_OUTER);
+    const scaledRadiusInner = this.roundToThousandths(parseFloat(radiusInnerCSS) || KNOB.RADIUS_INNER);
 
     return { scaledRadiusOuter, scaledRadiusInner };
   }
 
-  updateScaledDimensions(scale) {
-    const containerHeight = this.getBoundingClientRect().height;
-    const heightCSS = this.getCSSProperty('--component-height');
-    const hasFixedHeight = !!heightCSS && heightCSS !== 'auto';
+  updateScaledDimensions() {
+    // Read dimension values from CSS computed styles
+    const computedStyle = getComputedStyle(this);
 
-    // Scale all proportional dimensions
-    // If height is fixed, use the container height for label columns
-    if (hasFixedHeight && containerHeight > 0) {
-      this.labelColumnHeight = this.roundToThousandths(containerHeight);
-    } else {
-      this.labelColumnHeight = this.roundToThousandths(LABEL.COLUMN_HEIGHT * scale);
-    }
-    this.labelVerticalOffsetScale = this.roundToThousandths(LABEL.VERTICAL_OFFSET_SCALE * scale);
-    this.horizontalLineLength = this.roundToThousandths(LINE.HORIZONTAL_LENGTH * scale);
-    this.maxSpokeLength = this.roundToThousandths(LINE.MAX_SPOKE_LENGTH * scale);
-    this.hitAreaStrokeWidth = this.roundToThousandths(HIT_AREA.STROKE_WIDTH * scale);
-    this.horizontalLineEndOffset = this.roundToThousandths(LINE.HORIZONTAL_END_OFFSET * scale);
-    this.indicatorWidth = this.roundToThousandths(INDICATOR.WIDTH * scale);
-  }
-
-  updateCSSVariables(scale, scaledRadiusOuter) {
-    // Read circle widths from CSS custom properties
-    const widthOuterCSS = this.getCSSProperty('--width-outer-circle');
-    const widthInnerCSS = this.getCSSProperty('--width-inner-circle');
-
-    if (widthOuterCSS) {
-      const pixelMatch = widthOuterCSS.match(/^(\d+(?:\.\d+)?)px$/);
-      if (pixelMatch) {
-        const pixelValue = parseFloat(pixelMatch[1]);
-        this.percentages.widthOuterCircle = this.roundToThousandths((pixelValue / CIRCLE.WIDTH_OUTER) * 100);
-      } else {
-        this.percentages.widthOuterCircle = this.parsePercentageFromCSS('--width-outer-circle', 100);
-      }
-    } else {
-      this.percentages.widthOuterCircle = 100; // Default
-    }
-
-    if (widthInnerCSS) {
-      const pixelMatch = widthInnerCSS.match(/^(\d+(?:\.\d+)?)px$/);
-      if (pixelMatch) {
-        const pixelValue = parseFloat(pixelMatch[1]);
-        this.percentages.widthInnerCircle = this.roundToThousandths((pixelValue / CIRCLE.WIDTH_INNER) * 100);
-      } else {
-        this.percentages.widthInnerCircle = this.parsePercentageFromCSS('--width-inner-circle', 100);
-      }
-    } else {
-      this.percentages.widthInnerCircle = 100; // Default
-    }
-
-    // Calculate and set scaled circle widths
-    const baseWidthOuter = (CIRCLE.WIDTH_OUTER * this.percentages.widthOuterCircle) / 100;
-    const baseWidthInner = (CIRCLE.WIDTH_INNER * this.percentages.widthInnerCircle) / 100;
-    const scaledWidthOuter = this.roundToThousandths(baseWidthOuter * scale);
-    const scaledWidthInner = this.roundToThousandths(baseWidthInner * scale);
-    this.style.setProperty('--width-outer-circle', `${scaledWidthOuter}px`);
-    this.style.setProperty('--width-inner-circle', `${scaledWidthInner}px`);
-
-    // Scale center-indicator offset
-    const baseCenterIndicator = (INDICATOR.CENTER * this.percentages.centerIndicator) / 100;
-    const scaledCenterIndicator = this.roundToThousandths(baseCenterIndicator * scale);
-    this.style.setProperty('--center-indicator', `${scaledCenterIndicator}px`);
-
-    // Calculate indicator length based on knob radius and percentage
-    // Indicator length is proportional to knob radius
-    // Ratio: INDICATOR.LENGTH / KNOB.RADIUS_OUTER
-    const indicatorLengthRatio = INDICATOR.LENGTH / KNOB.RADIUS_OUTER;
-    const scaledIndicatorLength = this.roundToThousandths(
-      scaledRadiusOuter * indicatorLengthRatio * (this.percentages.indicatorLength / 100)
+    // Parse CSS values with fallbacks to defaults
+    this.labelColumnHeight = this.roundToThousandths(
+      parseFloat(computedStyle.getPropertyValue('--label-column-height').trim()) || LABEL.COLUMN_HEIGHT
     );
-    this.style.setProperty('--indicator-length', `${scaledIndicatorLength}px`);
-
-    // Update remaining CSS custom properties
-    this.style.setProperty('--knob-center', `${this.roundToThousandths(this.knobCenter)}px`);
-    this.style.setProperty('--label-column-height', `${this.roundToThousandths(this.labelColumnHeight)}px`);
-    this.style.setProperty(
-      '--label-vertical-offset-scale',
-      `${this.roundToThousandths(this.labelVerticalOffsetScale)}px`
+    this.labelVerticalOffsetScale = this.roundToThousandths(
+      parseFloat(computedStyle.getPropertyValue('--label-vertical-offset-scale').trim()) || LABEL.VERTICAL_OFFSET_SCALE
     );
-    this.style.setProperty('--horizontal-line-length', `${this.roundToThousandths(this.horizontalLineLength)}px`);
-    this.style.setProperty('--max-spoke-length', `${this.roundToThousandths(this.maxSpokeLength)}px`);
-    this.style.setProperty('--hit-area-stroke-width', `${this.roundToThousandths(this.hitAreaStrokeWidth)}px`);
-    this.style.setProperty(
-      '--horizontal-line-end-offset',
-      `${this.roundToThousandths(this.horizontalLineEndOffset)}px`
+    this.horizontalLineLength = this.roundToThousandths(
+      parseFloat(computedStyle.getPropertyValue('--horizontal-line-length').trim()) || LINE.HORIZONTAL_LENGTH
     );
-    this.style.setProperty('--indicator-width', `${this.roundToThousandths(this.indicatorWidth)}px`);
+    this.maxSpokeLength = this.roundToThousandths(
+      parseFloat(computedStyle.getPropertyValue('--max-spoke-length').trim()) || LINE.MAX_SPOKE_LENGTH
+    );
+    this.hitAreaStrokeWidth = this.roundToThousandths(
+      parseFloat(computedStyle.getPropertyValue('--hit-area-stroke-width').trim()) || HIT_AREA.STROKE_WIDTH
+    );
+    this.horizontalLineEndOffset = this.roundToThousandths(
+      parseFloat(computedStyle.getPropertyValue('--horizontal-line-end-offset').trim()) || LINE.HORIZONTAL_END_OFFSET
+    );
+    this.indicatorWidth = this.roundToThousandths(
+      parseFloat(computedStyle.getPropertyValue('--indicator-width').trim()) || INDICATOR.WIDTH
+    );
   }
 
   /**
-   * Updates all component dimensions based on container size and attributes.
-   * Calculates scale factor and updates all proportional dimensions.
+   * Updates all component dimensions based on CSS values.
+   * Reads CSS custom properties and updates internal dimension values for positioning.
    */
   updateDimensions() {
     if (!this.validateContainer()) {
       return;
     }
 
-    const scale = this.calculateScale();
-    const { scaledRadiusOuter } = this.updateKnobRadii(scale);
-    this.updateScaledDimensions(scale);
-    this.updateCSSVariables(scale, scaledRadiusOuter);
+    this.calculateScale();
+    this.updateKnobRadii();
+    this.updateScaledDimensions();
 
     // Update label positions when dimensions change
     if (this.labels.length > 0) {
@@ -973,12 +682,18 @@ class DialSelector extends HTMLElement {
 					user-select: none;
 					padding: clamp(4px, 1vw, 8px) clamp(6px, 1.5vw, 12px);
 					position: absolute;
-					transform: translateY(-50%);
+					transform: translateY(-50%) translateX(var(--line-length-offset, 0px));
 					white-space: nowrap;
 				}
 
 				.dial-label.active {
 					color: var(--color-selection);
+				}
+
+				.dial-label.below-line {
+					white-space: nowrap;
+					padding-left: 0;
+					padding-right: 0;
 				}
 
 				/* Media sizing inside labels */
@@ -1292,17 +1007,11 @@ class DialSelector extends HTMLElement {
 
       if (isSpokes) {
         // Spokes mode: position will be set in updateSpokesLabelPositions()
-        // Store angle data for positioning
         label.style.position = 'absolute';
       } else {
-        // Standard mode: Calculate vertical position based on angle
-        const topPosition = this.calculateLabelTopPosition(angleRad);
-        label.style.top = `${this.roundToThousandths(topPosition)}px`;
-        if (isLeft) {
-          label.style.right = '0';
-        } else {
-          label.style.left = '0';
-        }
+        // Standard mode: position will be set in updateStandardLines()
+        // Initial position - will be overridden
+        label.style.position = 'absolute';
       }
 
       label.addEventListener('click', () => this.selectIndex(index));
@@ -1445,8 +1154,8 @@ class DialSelector extends HTMLElement {
     return { intersectX, intersectY };
   }
 
-  calculateHorizontalLineEnd(labelX, intersectX, isLeft) {
-    const horizontalLength = this.horizontalLineLength;
+  calculateHorizontalLineEnd(labelX, intersectX, isLeft, customLineLength = null) {
+    const horizontalLength = customLineLength !== null ? customLineLength : this.horizontalLineLength;
     // Horizontal line should extend from label to intersection
     // But we want it to stop a bit before the intersection for visual clarity
     const horizontalEndX = isLeft
@@ -1475,50 +1184,197 @@ class DialSelector extends HTMLElement {
   }
 
   updateStandardLines(knobWrap, centerX, centerY, knobRadius) {
-    const knobWrapRect = knobWrap.getBoundingClientRect();
+    // Line geometry:
+    // 1. Spoke line: radiates from knob edge outward at the option's angle (except for center option if odd count)
+    // 2. Horizontal line: extends from spoke end (or knob edge if no spoke), left for left options, right for right options
+    // 3. Label: positioned at horizontal line end
 
-    this.labels.forEach((label, index) => {
-      const labelRect = label.getBoundingClientRect();
+    // Determine which options are "center" (no spoke) based on position
+    // If a side has an odd number of options, the middle one is the center option
+    const leftCenterIndex = this.leftCount % 2 === 1 ? Math.floor(this.leftCount / 2) : -1;
+    const rightCenterIndex = this.rightCount % 2 === 1 ? Math.floor(this.rightCount / 2) : -1;
 
+    // Pre-calculate spoke end positions for all labels
+    const labelData = this.labels.map((label, index) => {
       const angle = parseFloat(label.dataset.angle);
       const angleRad = this.degreesToRadians(angle);
-      const isLeft = index < this.leftCount;
+      const isLeft = label.dataset.isLeft === 'true';
+      const optionIndex = parseInt(label.dataset.index, 10);
+      const option = this.OPTIONS[optionIndex];
+      const customLineLength = option?.lineLength;
+      // Options with line-length attribute use radial alignment, others use column alignment
+      const useRadial = customLineLength !== null;
 
-      // Label connection point (relative to knob-wrap)
-      const labelX = this.roundToThousandths(
-        isLeft ? labelRect.right - knobWrapRect.left : labelRect.left - knobWrapRect.left
-      );
-      const labelY = this.roundToThousandths(labelRect.top + labelRect.height / 2 - knobWrapRect.top);
+      // Determine if this is the center option for its side (no spoke)
+      const indexWithinSide = isLeft ? optionIndex : optionIndex - this.leftCount;
+      const isCenterOption = isLeft ? indexWithinSide === leftCenterIndex : indexWithinSide === rightCenterIndex;
 
-      // Spoke start point at knob edge
+      // Spoke starts at knob edge
       const spokeStartX = this.roundToThousandths(centerX + Math.cos(angleRad) * knobRadius);
       const spokeStartY = this.roundToThousandths(centerY + Math.sin(angleRad) * knobRadius);
 
-      // Calculate intersection point
-      let { intersectX, intersectY } = this.calculateSpokeIntersection(
-        angleRad,
-        spokeStartX,
-        spokeStartY,
-        labelY,
-        isLeft
-      );
+      let spokeEndX, spokeEndY, horizontalStartY;
 
-      // Clamp intersection to not go past the label (fixes issue with nearly horizontal spokes on large knobs)
-      if (isLeft) {
-        intersectX = Math.max(intersectX, labelX + this.horizontalLineEndOffset);
+      if (isCenterOption) {
+        spokeEndX = spokeStartX;
+        spokeEndY = spokeStartY;
+        horizontalStartY = centerY;
       } else {
-        intersectX = Math.min(intersectX, labelX - this.horizontalLineEndOffset);
+        spokeEndX = this.roundToThousandths(centerX + Math.cos(angleRad) * (knobRadius + this.maxSpokeLength));
+        spokeEndY = this.roundToThousandths(centerY + Math.sin(angleRad) * (knobRadius + this.maxSpokeLength));
+        horizontalStartY = spokeEndY;
       }
 
-      // Calculate horizontal line end point
-      const horizontalEndX = this.calculateHorizontalLineEnd(labelX, intersectX, isLeft);
-      const horizontalEndY = this.roundToThousandths(labelY);
+      return {
+        label,
+        index,
+        angle,
+        angleRad,
+        isLeft,
+        optionIndex,
+        customLineLength,
+        useRadial,
+        isCenterOption,
+        spokeStartX,
+        spokeStartY,
+        spokeEndX,
+        spokeEndY,
+        horizontalStartY,
+      };
+    });
 
-      // Create polyline: label -> horizontal end -> intersection -> spoke start
-      const points = `${labelX},${labelY} ${horizontalEndX},${horizontalEndY} ${intersectX},${intersectY} ${spokeStartX},${spokeStartY}`;
+    // Calculate column positions for options using column alignment (those without line-length)
+    let leftColumnX = Infinity;
+    let rightColumnX = -Infinity;
+
+    // First pass: find the furthest horizontal end positions using default line length
+    // Only consider options that don't have custom line-length (column-aligned options)
+    labelData.forEach((data) => {
+      if (data.useRadial) return; // Skip radially-aligned options
+
+      const defaultEndX = data.isLeft
+        ? data.spokeEndX - this.horizontalLineLength
+        : data.spokeEndX + this.horizontalLineLength;
+
+      if (data.isLeft) {
+        leftColumnX = Math.min(leftColumnX, defaultEndX);
+      } else {
+        rightColumnX = Math.max(rightColumnX, defaultEndX);
+      }
+    });
+
+    // Second pass: draw lines and position labels
+    labelData.forEach((data) => {
+      const {
+        label,
+        index,
+        isLeft,
+        customLineLength,
+        useRadial,
+        isCenterOption,
+        spokeStartX,
+        spokeStartY,
+        spokeEndX,
+        spokeEndY,
+        horizontalStartY,
+      } = data;
+
+      // Determine horizontal line length
+      let horizontalLength;
+      if (useRadial) {
+        // Use custom line length for radially-aligned options
+        horizontalLength = customLineLength;
+      } else {
+        // Calculate length needed to reach column position for column-aligned options
+        horizontalLength = isLeft ? Math.abs(spokeEndX - leftColumnX) : Math.abs(rightColumnX - spokeEndX);
+      }
+
+      // Calculate horizontal end position
+      const horizontalEndX = isLeft
+        ? this.roundToThousandths(spokeEndX - horizontalLength)
+        : this.roundToThousandths(spokeEndX + horizontalLength);
+      const horizontalEndY = horizontalStartY;
+
+      // Build the line points
+      let points;
+      if (horizontalLength === 0 && isCenterOption) {
+        points = '';
+      } else if (horizontalLength === 0) {
+        points = `${spokeStartX},${spokeStartY} ${spokeEndX},${spokeEndY}`;
+      } else if (isCenterOption) {
+        points = `${spokeStartX},${horizontalStartY} ${horizontalEndX},${horizontalEndY}`;
+      } else {
+        points = `${spokeStartX},${spokeStartY} ${spokeEndX},${spokeEndY} ${horizontalEndX},${horizontalEndY}`;
+      }
+
+      // Position label at the horizontal line end
+      if (label.parentElement !== knobWrap) {
+        knobWrap.appendChild(label);
+      }
+
+      const labelGap = this.horizontalLineEndOffset;
+
+      // First, position label normally (inline with the line)
+      label.classList.remove('below-line');
+      if (isLeft) {
+        label.style.left = `${horizontalEndX - labelGap}px`;
+        label.style.right = 'auto';
+        label.style.transform = 'translateX(-100%) translateY(-50%)';
+        label.style.textAlign = 'right';
+      } else {
+        label.style.left = `${horizontalEndX + labelGap}px`;
+        label.style.right = 'auto';
+        label.style.transform = 'translateY(-50%)';
+        label.style.textAlign = 'left';
+      }
+      label.style.top = `${horizontalEndY}px`;
+
+      // Check for overflow and reposition if needed
+      // Use the host element bounds (the dial-selector itself) for overflow detection
+      const hostRect = this.getBoundingClientRect();
+      const labelRect = label.getBoundingClientRect();
+
+      // Only consider it overflow if the label actually extends beyond the host bounds
+      const overflowsRight = labelRect.right > hostRect.right;
+      const overflowsLeft = labelRect.left < hostRect.left;
+      const labelOverflows = (isLeft && overflowsLeft) || (!isLeft && overflowsRight);
+
+      if (labelOverflows && horizontalLength > 0) {
+        // Move label above or below the line based on position
+        // Options in upper half show label above, lower half show below
+        const isAboveCenter = horizontalEndY < centerY;
+
+        label.classList.add('below-line');
+
+        let breakLineY;
+        let yTransform;
+        if (isAboveCenter) {
+          // Position above the line
+          breakLineY = horizontalEndY - 4;
+          yTransform = 'translateY(-100%)';
+        } else {
+          // Position below the line
+          breakLineY = horizontalEndY + 4;
+          yTransform = 'translateY(0)';
+        }
+
+        // Align text with the spoke-end of the horizontal line (inner connection point)
+        if (isLeft) {
+          // Left side: end of text aligns with spoke end (right side of horizontal line)
+          label.style.left = `${spokeEndX}px`;
+          label.style.transform = `translateX(-100%) ${yTransform}`;
+          label.style.textAlign = 'right';
+        } else {
+          // Right side: start of text aligns with spoke end (left side of horizontal line)
+          label.style.left = `${spokeEndX}px`;
+          label.style.transform = yTransform;
+          label.style.textAlign = 'left';
+        }
+        label.style.top = `${breakLineY}px`;
+      }
+
       this.lines[index].setAttribute('points', points);
 
-      // Update hit area with same points
       if (this.hitAreas[index]) {
         this.hitAreas[index].setAttribute('points', points);
       }
