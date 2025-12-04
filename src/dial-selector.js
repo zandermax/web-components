@@ -1,14 +1,10 @@
-// Note: Styles are now included in the shadow DOM, so external CSS injection is not needed
-
 import {
   ATTRIBUTES,
   FULL_CIRCLE_DEGREES,
   DEFAULT_OPTIONS,
   ARCS,
   KNOB,
-  LABEL,
   LINE,
-  INDICATOR,
   HIT_AREA,
   OPACITY,
   ANIMATION,
@@ -30,41 +26,40 @@ import eventsHelper from './helpers/events.js';
  * and various configuration options via HTML attributes.
  */
 class DialSelector extends HTMLElement {
+  // Private fields
+  #currentIndex = 0;
+  #previousIndex = -1;
+  #currentAngle = 0;
+  #isInitialized = false;
+  #labels = [];
+  #lines = [];
+  #hitAreas = [];
+  #spokeAngles = [];
+  #rightCount = 0;
+  #leftCount = 0;
+  #resizeObserver = null;
+  #childObserver = null;
+  #options = []; // Array of { value: string, label: string }
+  #hasConnected = false;
+  #resizeHandler = null;
+  // Dynamic dimensions (read from CSS computed styles)
+  #knobWrapSize = KNOB.WRAP_SIZE;
+  #horizontalLineLength = LINE.HORIZONTAL_LENGTH;
+  #maxSpokeLength = LINE.MAX_SPOKE_LENGTH;
+  #hitAreaStrokeWidth = HIT_AREA.STROKE_WIDTH;
+  #horizontalLineEndOffset = LINE.HORIZONTAL_END_OFFSET;
+
   constructor() {
     super();
     // Create shadow DOM in constructor
     this.attachShadow({ mode: 'open' });
-    this.currentIndex = 0;
-    this.previousIndex = -1;
-    this.currentAngle = 0;
-    this.isInitialized = false;
-    this.labels = [];
-    this.lines = [];
-    this.hitAreas = [];
-    this.spokeAngles = [];
-    this.rightCount = 0;
-    this.leftCount = 0;
-    this.resizeObserver = null;
-    this.childObserver = null;
-    this.OPTIONS = []; // Array of { value: string, label: string }
-    this._childOptions = null; // Cache for child options read before shadow DOM
-    // Dynamic dimensions (read from CSS computed styles)
-    this.knobWrapSize = KNOB.WRAP_SIZE;
-    this.knobCenter = KNOB.WRAP_SIZE / 2;
-    this.labelColumnHeight = LABEL.COLUMN_HEIGHT;
-    this.labelVerticalOffsetScale = LABEL.VERTICAL_OFFSET_SCALE;
-    this.horizontalLineLength = LINE.HORIZONTAL_LENGTH;
-    this.maxSpokeLength = LINE.MAX_SPOKE_LENGTH;
-    this.hitAreaStrokeWidth = HIT_AREA.STROKE_WIDTH;
-    this.horizontalLineEndOffset = LINE.HORIZONTAL_END_OFFSET;
-    this.indicatorWidth = INDICATOR.WIDTH;
   }
 
   static observedAttributes = ATTRIBUTES;
 
   initializeOptions() {
     const childOptions = Array.from(this.querySelectorAll('dial-option'));
-    this.OPTIONS = configHelper.parseChildOptions(childOptions, DEFAULT_OPTIONS);
+    this.#options = configHelper.parseChildOptions(childOptions, DEFAULT_OPTIONS);
   }
 
   initializeAttributes() {
@@ -90,8 +85,8 @@ class DialSelector extends HTMLElement {
 
   connectedCallback() {
     // Avoid re-running init if the element is moved in the DOM
-    if (this._hasConnected) return;
-    this._hasConnected = true;
+    if (this.#hasConnected) return;
+    this.#hasConnected = true;
 
     // Build DOM if shadow root is empty (no content yet)
     if (!this.shadowRoot || this.shadowRoot.innerHTML === '') {
@@ -111,14 +106,14 @@ class DialSelector extends HTMLElement {
       this.classList.add('no-transitions');
 
       // One-time window resize handler
-      if (!this._resizeHandler) {
-        this._resizeHandler = () => {
+      if (!this.#resizeHandler) {
+        this.#resizeHandler = () => {
           this.withoutTransitions(() => {
             this.updateDimensions();
             this.updateLines();
           });
         };
-        window.addEventListener('resize', this._resizeHandler);
+        window.addEventListener('resize', this.#resizeHandler);
       }
 
       this.setInitialSelection();
@@ -135,17 +130,17 @@ class DialSelector extends HTMLElement {
   }
 
   disconnectedCallback() {
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-      this.resizeObserver = null;
+    if (this.#resizeObserver) {
+      this.#resizeObserver.disconnect();
+      this.#resizeObserver = null;
     }
-    if (this.childObserver) {
-      this.childObserver.disconnect();
-      this.childObserver = null;
+    if (this.#childObserver) {
+      this.#childObserver.disconnect();
+      this.#childObserver = null;
     }
-    if (this._resizeHandler) {
-      window.removeEventListener('resize', this._resizeHandler);
-      this._resizeHandler = null;
+    if (this.#resizeHandler) {
+      window.removeEventListener('resize', this.#resizeHandler);
+      this.#resizeHandler = null;
     }
   }
 
@@ -172,11 +167,11 @@ class DialSelector extends HTMLElement {
    * @param {number} index - The index of the option to select
    */
   selectIndex(index) {
-    if (index >= 0 && index < this.OPTIONS.length) {
-      this.currentIndex = index;
+    if (index >= 0 && index < this.#options.length) {
+      this.#currentIndex = index;
       this.updateSelector();
       // Update value attribute (only if it's different to avoid triggering change handler)
-      const currentOption = this.OPTIONS[this.currentIndex];
+      const currentOption = this.#options[this.#currentIndex];
       if (currentOption) {
         const currentValue = this.getAttribute('value');
         if (currentValue !== currentOption.value) {
@@ -198,32 +193,28 @@ class DialSelector extends HTMLElement {
       },
     };
 
-    const handler = ATTRIBUTE_HANDLERS[name];
-    if (handler) {
-      handler();
-    }
-    // Unknown attributes are ignored
+    ATTRIBUTE_HANDLERS[name]?.();
   }
 
   handleOneSidedChange() {
-    if (this.isInitialized) {
+    if (this.#isInitialized) {
       // Rebuild component when one-sided mode changes
       this.rebuildComponent();
     }
   }
 
   handleModeChange() {
-    if (this.isInitialized) {
+    if (this.#isInitialized) {
       // Rebuild component when mode changes
       this.rebuildComponent();
     }
   }
 
   handleValueChange(newValue) {
-    if (newValue && this.isInitialized) {
-      const index = domHelper.findOptionIndexByValue(this.OPTIONS, newValue);
-      if (index !== -1 && index !== this.currentIndex) {
-        this.currentIndex = index;
+    if (newValue && this.#isInitialized) {
+      const index = domHelper.findOptionIndexByValue(this.#options, newValue);
+      if (index !== -1 && index !== this.#currentIndex) {
+        this.#currentIndex = index;
         this.updateSelector();
       }
     }
@@ -232,15 +223,15 @@ class DialSelector extends HTMLElement {
   setInitialSelection() {
     const valueAttr = this.getAttribute('value');
     if (valueAttr) {
-      const index = domHelper.findOptionIndexByValue(this.OPTIONS, valueAttr);
+      const index = domHelper.findOptionIndexByValue(this.#options, valueAttr);
       if (index !== -1) {
-        this.currentIndex = index;
-        this.previousIndex = index;
+        this.#currentIndex = index;
+        this.#previousIndex = index;
       }
     }
     // Always set the value attribute to keep it in sync
-    if (this.OPTIONS.length > 0 && this.currentIndex >= 0) {
-      const currentOption = this.OPTIONS[this.currentIndex];
+    if (this.#options.length > 0 && this.#currentIndex >= 0) {
+      const currentOption = this.#options[this.#currentIndex];
       if (currentOption) {
         this.setAttribute('value', currentOption.value);
       }
@@ -248,12 +239,12 @@ class DialSelector extends HTMLElement {
   }
 
   rebuildComponent() {
-    this.labels = [];
-    this.lines = [];
-    this.spokeAngles = [];
-    this.currentIndex = 0;
-    this.previousIndex = -1;
-    this.isInitialized = false;
+    this.#labels = [];
+    this.#lines = [];
+    this.#spokeAngles = [];
+    this.#currentIndex = 0;
+    this.#previousIndex = -1;
+    this.#isInitialized = false;
     this.updateDimensions();
     this.calculateAngles();
     this.createLabelsAndLines();
@@ -267,14 +258,14 @@ class DialSelector extends HTMLElement {
   }
 
   setupChildObserver() {
-    this.childObserver = new MutationObserver((mutations) => {
-      if (domHelper.shouldRebuildFromMutations(mutations) && this.isInitialized) {
+    this.#childObserver = new MutationObserver((mutations) => {
+      if (domHelper.shouldRebuildFromMutations(mutations) && this.#isInitialized) {
         this.initializeOptions();
         this.rebuildComponent();
       }
     });
 
-    this.childObserver.observe(this, {
+    this.#childObserver.observe(this, {
       childList: true,
       subtree: true,
       attributes: true,
@@ -307,13 +298,13 @@ class DialSelector extends HTMLElement {
 
   setupResizeObserver() {
     if (typeof ResizeObserver !== 'undefined') {
-      this.resizeObserver = new ResizeObserver(() => {
+      this.#resizeObserver = new ResizeObserver(() => {
         this.withoutTransitions(() => {
           this.updateDimensions();
           this.updateLines();
         });
       });
-      this.resizeObserver.observe(this);
+      this.#resizeObserver.observe(this);
     }
   }
 
@@ -331,14 +322,13 @@ class DialSelector extends HTMLElement {
     const knobWrap = this.shadowRoot.querySelector('.knob-wrap');
     const actualSize = knobWrap.getBoundingClientRect().width;
 
-    const { knobWrapSize, knobCenter, scale } = dimensionsHelper.calculateKnobScale({
+    const { knobWrapSize, scale } = dimensionsHelper.calculateKnobScale({
       actualSize,
       baseSize: KNOB.WRAP_SIZE,
       roundFn: mathHelper.roundToThousandths,
     });
 
-    this.knobWrapSize = knobWrapSize;
-    this.knobCenter = knobCenter;
+    this.#knobWrapSize = knobWrapSize;
     return scale;
   }
 
@@ -353,11 +343,14 @@ class DialSelector extends HTMLElement {
   updateScaledDimensions() {
     const dims = dimensionsHelper.parseDimensionsFromCSS({
       computedStyle: getComputedStyle(this),
-      defaults: { LABEL, LINE, HIT_AREA, INDICATOR },
+      defaults: { LINE, HIT_AREA },
       roundFn: mathHelper.roundToThousandths,
     });
 
-    Object.assign(this, dims);
+    this.#horizontalLineLength = dims.horizontalLineLength;
+    this.#maxSpokeLength = dims.maxSpokeLength;
+    this.#hitAreaStrokeWidth = dims.hitAreaStrokeWidth;
+    this.#horizontalLineEndOffset = dims.horizontalLineEndOffset;
   }
 
   /**
@@ -372,11 +365,7 @@ class DialSelector extends HTMLElement {
     this.calculateScale();
     this.updateKnobRadii();
     this.updateScaledDimensions();
-
-    // Update label positions when dimensions change
-    if (this.labels.length > 0) {
-      this.updateLabelPositions();
-    }
+    // Label positions now update automatically via CSS custom properties
   }
 
   buildDOM() {
@@ -402,15 +391,15 @@ class DialSelector extends HTMLElement {
 
   calculateAngles() {
     const { leftCount, rightCount, spokeAngles } = configHelper.calculateSideCounts({
-      optionCount: this.OPTIONS.length,
+      optionCount: this.#options.length,
       oneSided: this.getOneSidedConfig(),
       arcs: ARCS,
       generateAngles: mathHelper.generateArcAngles,
     });
 
-    this.leftCount = leftCount;
-    this.rightCount = rightCount;
-    this.spokeAngles = spokeAngles;
+    this.#leftCount = leftCount;
+    this.#rightCount = rightCount;
+    this.#spokeAngles = spokeAngles;
   }
 
   createLabelsAndLines() {
@@ -429,7 +418,7 @@ class DialSelector extends HTMLElement {
 
     // Clear existing content
     domHelper.clearContainers({ leftColumn, rightColumn, lineContainer, knobWrap });
-    this.hitAreas = [];
+    this.#hitAreas = [];
 
     // Update one-sided state on host element for CSS styling
     if (oneSided) {
@@ -438,7 +427,7 @@ class DialSelector extends HTMLElement {
       this.removeAttribute('data-one-sided');
     }
 
-    this.OPTIONS.forEach((option, index) => {
+    this.#options.forEach((option, index) => {
       const { isLeft, container, angle } = this.resolveOptionPlacement({
         index,
         oneSided,
@@ -458,12 +447,12 @@ class DialSelector extends HTMLElement {
         onClick: () => this.selectIndex(index),
       });
       if (container) container.appendChild(label);
-      this.labels.push(label);
+      this.#labels.push(label);
 
       // Create hit area and line
       const hitArea = domHelper.createHitAreaElement({
         index,
-        hitAreaStrokeWidth: this.hitAreaStrokeWidth,
+        hitAreaStrokeWidth: this.#hitAreaStrokeWidth,
         onClick: () => this.selectIndex(index),
       });
       const line = domHelper.createLineElement({
@@ -474,20 +463,16 @@ class DialSelector extends HTMLElement {
 
       lineContainer.appendChild(hitArea);
       lineContainer.appendChild(line);
-      this.lines.push(line);
-      this.hitAreas.push(hitArea);
+      this.#lines.push(line);
+      this.#hitAreas.push(hitArea);
     });
 
     if (advanceButton) {
       advanceButton.addEventListener('click', () => {
-        this.selectIndex((this.currentIndex + 1) % this.OPTIONS.length);
+        this.selectIndex((this.#currentIndex + 1) % this.#options.length);
       });
     }
-
-    // Position spokes mode labels after they're added to DOM
-    if (isSpokes) {
-      this.updateSpokesLabelPositions();
-    }
+    // Label positioning is now handled automatically by CSS
   }
 
   /**
@@ -497,60 +482,25 @@ class DialSelector extends HTMLElement {
     const { isLeft, angleIndex } = configHelper.resolveOptionSide({
       index,
       oneSided,
-      leftCount: this.leftCount,
-      rightCount: this.rightCount,
+      leftCount: this.#leftCount,
+      rightCount: this.#rightCount,
     });
 
     const container = isSpokes ? knobWrap : isLeft ? leftColumn : rightColumn;
-    return { isLeft, container, angle: this.spokeAngles[angleIndex] };
+    return { isLeft, container, angle: this.#spokeAngles[angleIndex] };
   }
 
-  updateLabelPositions() {
-    if (this.isSpokesMode()) {
-      this.updateSpokesLabelPositions();
-    } else {
-      this.labels.forEach((label) => {
-        const topPosition = labelsHelper.calculateLabelTopPosition({
-          angleRad: mathHelper.degreesToRadians(parseFloat(label.dataset.angle)),
-          columnHeight: this.labelColumnHeight,
-          verticalOffsetScale: this.labelVerticalOffsetScale,
-          roundFn: mathHelper.roundToThousandths,
-        });
-        label.style.top = `${topPosition}px`;
-      });
-    }
-  }
-
-  updateSpokesLabelPositions() {
-    const computedStyle = getComputedStyle(this);
-    const radiusOuter = parseFloat(computedStyle.getPropertyValue('--radius-outer').trim()) || KNOB.RADIUS_OUTER;
-
-    this.labels.forEach((label) => {
-      const position = labelsHelper.calculateSpokesLabelPosition({
-        angleRad: mathHelper.degreesToRadians(parseFloat(label.dataset.angle)),
-        isLeft: label.dataset.isLeft === 'true',
-        centerX: this.knobCenter,
-        centerY: this.knobCenter,
-        radiusOuter,
-        spokeLength: this.maxSpokeLength,
-        roundFn: mathHelper.roundToThousandths,
-      });
-
-      label.style.left = position.left;
-      label.style.right = position.right;
-      label.style.top = position.top;
-      label.style.transform = position.transform;
-      label.style.textAlign = position.textAlign;
-    });
-  }
+  // Label positioning is now handled entirely by CSS using sin() and cos()
+  // See styles.js .dial-label and :host([mode="spokes"]) .dial-label.spokes
 
   updateLines() {
     const knobWrap = this.shadowRoot.querySelector('.knob-wrap');
     if (!knobWrap) return;
 
     const isSpokes = this.isSpokesMode();
-    const centerX = this.knobCenter;
-    const centerY = this.knobCenter;
+    const knobCenter = this.#knobWrapSize / 2;
+    const centerX = knobCenter;
+    const centerY = knobCenter;
     // Get the actual knob radius from CSS variable, with fallback to default
     const computedStyle = getComputedStyle(this);
     const radiusOuter = computedStyle.getPropertyValue('--radius-outer').trim() || '90px';
@@ -564,33 +514,33 @@ class DialSelector extends HTMLElement {
   }
 
   updateStandardLines(knobWrap, centerX, centerY, knobRadius) {
-    const leftCenterIndex = this.leftCount % 2 === 1 ? Math.floor(this.leftCount / 2) : -1;
-    const rightCenterIndex = this.rightCount % 2 === 1 ? Math.floor(this.rightCount / 2) : -1;
+    const leftCenterIndex = this.#leftCount % 2 === 1 ? Math.floor(this.#leftCount / 2) : -1;
+    const rightCenterIndex = this.#rightCount % 2 === 1 ? Math.floor(this.#rightCount / 2) : -1;
 
     // Calculate geometry data for all labels
-    const labelData = this.labels.map((label, index) => {
+    const labelData = this.#labels.map((label, index) => {
       const optionIndex = parseInt(label.dataset.index, 10);
-      const option = this.OPTIONS[optionIndex];
+      const option = this.#options[optionIndex];
 
       const geom = linesHelper.calculateLabelGeometry({
         angle: parseFloat(label.dataset.angle),
         isLeft: label.dataset.isLeft === 'true',
         optionIndex,
         customLineLength: option?.lineLength ?? null,
-        leftCount: this.leftCount,
+        leftCount: this.#leftCount,
         leftCenterIndex,
         rightCenterIndex,
         centerX,
         centerY,
         knobRadius,
-        maxSpokeLength: this.maxSpokeLength,
+        maxSpokeLength: this.#maxSpokeLength,
       });
 
       return { label, index, ...geom };
     });
 
     // Calculate column positions
-    const { leftColumnX, rightColumnX } = linesHelper.calculateColumnPositions(labelData, this.horizontalLineLength);
+    const { leftColumnX, rightColumnX } = linesHelper.calculateColumnPositions(labelData, this.#horizontalLineLength);
 
     // Draw lines and position labels
     labelData.forEach((data) => {
@@ -626,9 +576,9 @@ class DialSelector extends HTMLElement {
         horizontalEndY,
       });
 
-      this.lines[index].setAttribute('points', points);
-      if (this.hitAreas[index]) {
-        this.hitAreas[index].setAttribute('points', points);
+      this.#lines[index].setAttribute('points', points);
+      if (this.#hitAreas[index]) {
+        this.#hitAreas[index].setAttribute('points', points);
       }
 
       // Ensure label is in knobWrap
@@ -641,7 +591,7 @@ class DialSelector extends HTMLElement {
         isLeft,
         horizontalEndX,
         horizontalEndY,
-        labelGap: this.horizontalLineEndOffset,
+        labelGap: this.#horizontalLineEndOffset,
       });
       labelsHelper.applyLabelPosition(label, inlinePosition);
 
@@ -662,19 +612,19 @@ class DialSelector extends HTMLElement {
   }
 
   updateSpokesLines(centerX, centerY, knobRadius) {
-    this.labels.forEach((label, index) => {
+    this.#labels.forEach((label, index) => {
       const { points } = linesHelper.calculateSpokeEndpoints({
         angle: parseFloat(label.dataset.angle),
         centerX,
         centerY,
         knobRadius,
-        spokeLength: this.maxSpokeLength,
-        labelGap: this.horizontalLineEndOffset,
+        spokeLength: this.#maxSpokeLength,
+        labelGap: this.#horizontalLineEndOffset,
       });
 
-      this.lines[index].setAttribute('points', points);
-      if (this.hitAreas[index]) {
-        this.hitAreas[index].setAttribute('points', points);
+      this.#lines[index].setAttribute('points', points);
+      if (this.#hitAreas[index]) {
+        this.#hitAreas[index].setAttribute('points', points);
       }
     });
   }
@@ -683,40 +633,40 @@ class DialSelector extends HTMLElement {
    * Updates the selector indicator position and active states.
    */
   updateSelector() {
-    if (this.labels.length === 0) return;
+    if (this.#labels.length === 0) return;
 
-    const targetAngle = parseFloat(this.labels[this.currentIndex].dataset.angle);
+    const targetAngle = parseFloat(this.#labels[this.#currentIndex].dataset.angle);
 
-    if (!this.isInitialized) {
-      this.currentAngle = mathHelper.roundToThousandths(targetAngle);
-      this.isInitialized = true;
-      this.previousIndex = this.currentIndex;
+    if (!this.#isInitialized) {
+      this.#currentAngle = mathHelper.roundToThousandths(targetAngle);
+      this.#isInitialized = true;
+      this.#previousIndex = this.#currentIndex;
     } else {
       // Calculate the shortest angular path to the target
-      const delta = geometryHelper.calculateShortestRotation(this.currentAngle, targetAngle, FULL_CIRCLE_DEGREES);
-      this.currentAngle = mathHelper.roundToThousandths(this.currentAngle + delta);
+      const delta = geometryHelper.calculateShortestRotation(this.#currentAngle, targetAngle, FULL_CIRCLE_DEGREES);
+      this.#currentAngle = mathHelper.roundToThousandths(this.#currentAngle + delta);
     }
 
-    this.style.setProperty('--indicator-angle', `${mathHelper.roundToThousandths(this.currentAngle)}deg`);
+    this.style.setProperty('--indicator-angle', `${mathHelper.roundToThousandths(this.#currentAngle)}deg`);
 
     domHelper.updateActiveStates({
-      labels: this.labels,
-      lines: this.lines,
-      activeIndex: this.currentIndex,
+      labels: this.#labels,
+      lines: this.#lines,
+      activeIndex: this.#currentIndex,
       activeOpacity: OPACITY.LINE_ACTIVE,
       inactiveOpacity: OPACITY.LINE_INACTIVE,
     });
 
     // Dispatch change event if the selection actually changed
-    if (this.previousIndex !== this.currentIndex && this.isInitialized) {
+    if (this.#previousIndex !== this.#currentIndex && this.#isInitialized) {
       eventsHelper.dispatchDialChangeEvent({
         element: this,
-        currentOption: this.OPTIONS[this.currentIndex],
-        previousOption: this.OPTIONS[this.previousIndex],
-        currentIndex: this.currentIndex,
-        previousIndex: this.previousIndex,
+        currentOption: this.#options[this.#currentIndex],
+        previousOption: this.#options[this.#previousIndex],
+        currentIndex: this.#currentIndex,
+        previousIndex: this.#previousIndex,
       });
-      this.previousIndex = this.currentIndex;
+      this.#previousIndex = this.#currentIndex;
     }
   }
 }

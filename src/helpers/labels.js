@@ -1,21 +1,12 @@
 /**
  * Label positioning calculation functions for the dial-selector component.
+ * Note: Basic label positioning (column mode and spokes mode) is now handled
+ * by CSS using sin() and cos() functions. See styles.js.
+ * These functions handle overflow detection and inline positioning for lines.
  */
 
-/**
- * Calculates the vertical position of a label based on its angle.
- * @param {Object} params - Parameters
- * @param {number} params.angleRad - Angle in radians
- * @param {number} params.columnHeight - Height of the label column
- * @param {number} params.verticalOffsetScale - Scale factor for vertical offset
- * @param {function} params.roundFn - Rounding function
- * @returns {number} Top position in pixels
- */
-function calculateLabelTopPosition({ angleRad, columnHeight, verticalOffsetScale, roundFn }) {
-  const columnCenter = columnHeight / 2;
-  const verticalOffset = Math.sin(angleRad) * verticalOffsetScale;
-  return roundFn(columnCenter + verticalOffset);
-}
+/** Vertical offset for repositioning overflowed labels */
+const OVERFLOW_LABEL_OFFSET = 4;
 
 /**
  * Calculates the inline (non-overflow) position for a label.
@@ -69,17 +60,8 @@ function detectLabelOverflow({ isLeft, labelRect, hostRect }) {
  */
 function calculateOverflowLabelPosition({ horizontalEndX, horizontalEndY, centerY }) {
   const isAboveCenter = horizontalEndY < centerY;
-
-  let breakLineY;
-  let yTransform;
-
-  if (isAboveCenter) {
-    breakLineY = horizontalEndY - 4;
-    yTransform = 'translateY(-100%)';
-  } else {
-    breakLineY = horizontalEndY + 4;
-    yTransform = 'translateY(0)';
-  }
+  const breakLineY = isAboveCenter ? horizontalEndY - OVERFLOW_LABEL_OFFSET : horizontalEndY + OVERFLOW_LABEL_OFFSET;
+  const yTransform = isAboveCenter ? 'translateY(-100%)' : 'translateY(0)';
 
   return {
     left: `${horizontalEndX}px`,
@@ -110,47 +92,12 @@ function applyLabelPosition(label, position) {
   }
 }
 
-/**
- * Calculates position for a spokes-mode label.
- * @param {Object} params - Parameters
- * @param {number} params.angleRad - Angle in radians
- * @param {boolean} params.isLeft - Whether on left side
- * @param {number} params.centerX - X of dial center
- * @param {number} params.centerY - Y of dial center
- * @param {number} params.radiusOuter - Outer radius of knob
- * @param {number} params.spokeLength - Length of spoke
- * @param {function} params.roundFn - Rounding function
- * @returns {Object} Position data with left, right, top, transform, textAlign
- */
-function calculateSpokesLabelPosition({ angleRad, isLeft, centerX, centerY, radiusOuter, spokeLength, roundFn }) {
-  // Calculate position at end of spoke (outside knob radius)
-  const labelAnchorX = roundFn(centerX + Math.cos(angleRad) * (radiusOuter + spokeLength));
-  const labelAnchorY = roundFn(centerY + Math.sin(angleRad) * (radiusOuter + spokeLength));
-
-  if (isLeft) {
-    return {
-      left: `${labelAnchorX}px`,
-      right: 'auto',
-      top: `${labelAnchorY}px`,
-      transform: 'translate(-100%, -50%)',
-      textAlign: 'right',
-    };
-  }
-
-  return {
-    left: `${labelAnchorX}px`,
-    right: 'auto',
-    top: `${labelAnchorY}px`,
-    transform: 'translate(0%, -50%)',
-    textAlign: 'left',
-  };
-}
+// Note: calculateSpokesLabelPosition has been replaced by CSS using sin()/cos()
+// See styles.js :host([mode="spokes"]) .dial-label.spokes
 
 export default {
-  calculateLabelTopPosition,
   calculateInlineLabelPosition,
   detectLabelOverflow,
   calculateOverflowLabelPosition,
   applyLabelPosition,
-  calculateSpokesLabelPosition,
 };

@@ -26,23 +26,24 @@ function parseOneSidedValue(value) {
  * @returns {Array<{value: string, label: string, htmlContent: string|null, lineLength: number|null}>}
  */
 function parseChildOptions(childOptions, defaultOptions) {
-  if (childOptions.length > 0) {
-    return childOptions.map((option, index) => {
-      const labelText = (option.textContent || '').trim();
-      const value = option.getAttribute('value') || labelText || String(index);
-      const label = labelText || value;
-      const htmlContent = option.innerHTML.trim() || null;
-      const lineLengthAttr = option.getAttribute('line-length');
-      const lineLength = lineLengthAttr !== null ? parseFloat(lineLengthAttr) : null;
-      return { value, label, htmlContent, lineLength };
-    });
+  if (childOptions.length === 0) {
+    return defaultOptions.map((opt) => ({
+      value: opt,
+      label: opt,
+      htmlContent: null,
+      lineLength: null,
+    }));
   }
-  return defaultOptions.map((opt) => ({
-    value: opt,
-    label: opt,
-    htmlContent: null,
-    lineLength: null,
-  }));
+
+  return childOptions.map((option, index) => {
+    const labelText = (option.textContent ?? '').trim();
+    const value = option.getAttribute('value') ?? (labelText || String(index));
+    const label = labelText || value;
+    const htmlContent = option.innerHTML.trim() || null;
+    const lineLengthAttr = option.getAttribute('line-length');
+    const lineLength = lineLengthAttr !== null ? parseFloat(lineLengthAttr) : null;
+    return { value, label, htmlContent, lineLength };
+  });
 }
 
 /**

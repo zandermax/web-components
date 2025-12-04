@@ -11,27 +11,21 @@
  * @returns {number} The parsed value
  */
 function parseCSSValue(computedStyle, propertyName, fallback, roundFn) {
-  const value = computedStyle.getPropertyValue(propertyName).trim();
-  return roundFn(parseFloat(value) || fallback);
+  const rawValue = computedStyle.getPropertyValue(propertyName).trim();
+  const parsed = parseFloat(rawValue);
+  return roundFn(Number.isNaN(parsed) ? fallback : parsed);
 }
 
 /**
  * Parses all dimension CSS custom properties.
  * @param {Object} params - Parameters
  * @param {CSSStyleDeclaration} params.computedStyle - The computed style object
- * @param {Object} params.defaults - Default values { LABEL, LINE, HIT_AREA, INDICATOR }
+ * @param {Object} params.defaults - Default values { LINE, HIT_AREA }
  * @param {function} params.roundFn - Rounding function
  * @returns {Object} Parsed dimensions
  */
 function parseDimensionsFromCSS({ computedStyle, defaults, roundFn }) {
   return {
-    labelColumnHeight: parseCSSValue(computedStyle, '--label-column-height', defaults.LABEL.COLUMN_HEIGHT, roundFn),
-    labelVerticalOffsetScale: parseCSSValue(
-      computedStyle,
-      '--label-vertical-offset-scale',
-      defaults.LABEL.VERTICAL_OFFSET_SCALE,
-      roundFn
-    ),
     horizontalLineLength: parseCSSValue(
       computedStyle,
       '--horizontal-line-length',
@@ -51,7 +45,6 @@ function parseDimensionsFromCSS({ computedStyle, defaults, roundFn }) {
       defaults.LINE.HORIZONTAL_END_OFFSET,
       roundFn
     ),
-    indicatorWidth: parseCSSValue(computedStyle, '--indicator-width', defaults.INDICATOR.WIDTH, roundFn),
   };
 }
 

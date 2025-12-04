@@ -42,32 +42,28 @@ function calculateShortestRotation(currentAngle, targetAngle, fullCircle = 360) 
  * @returns {{ intersectX: number, intersectY: number }} Intersection coordinates
  */
 function calculateSpokeIntersection({ angleRad, spokeStartX, spokeStartY, labelY, isLeft, maxSpokeLength }) {
-  let intersectX, intersectY;
+  const intersectY = math.roundToThousandths(labelY);
 
+  // Nearly horizontal spoke - limit the extension
   if (Math.abs(Math.sin(angleRad)) < THRESHOLDS.NEARLY_HORIZONTAL) {
-    // Nearly horizontal spoke - limit the extension
     const maxExtension = isLeft ? -maxSpokeLength : maxSpokeLength;
-    intersectX = math.roundToThousandths(spokeStartX + maxExtension);
-    intersectY = math.roundToThousandths(labelY);
-  } else {
-    // Parametric form: x = spokeStartX + t*cos(angle), y = spokeStartY + t*sin(angle)
-    // We want y = labelY, so: t = (labelY - spokeStartY) / sin(angle)
-    const t = (labelY - spokeStartY) / Math.sin(angleRad);
-
-    // Limit the spoke length if it would extend too far
-    const spokeLength = Math.abs(t);
-    if (spokeLength > maxSpokeLength) {
-      // Cap the spoke at max length
-      const limitedT = t > 0 ? maxSpokeLength : -maxSpokeLength;
-      intersectX = math.roundToThousandths(spokeStartX + limitedT * Math.cos(angleRad));
-      intersectY = math.roundToThousandths(labelY);
-    } else {
-      intersectX = math.roundToThousandths(spokeStartX + t * Math.cos(angleRad));
-      intersectY = math.roundToThousandths(labelY);
-    }
+    return {
+      intersectX: math.roundToThousandths(spokeStartX + maxExtension),
+      intersectY,
+    };
   }
 
-  return { intersectX, intersectY };
+  // Parametric form: x = spokeStartX + t*cos(angle), y = spokeStartY + t*sin(angle)
+  // We want y = labelY, so: t = (labelY - spokeStartY) / sin(angle)
+  const t = (labelY - spokeStartY) / Math.sin(angleRad);
+
+  // Cap the spoke at max length if needed
+  const clampedT = Math.abs(t) > maxSpokeLength ? Math.sign(t) * maxSpokeLength : t;
+
+  return {
+    intersectX: math.roundToThousandths(spokeStartX + clampedT * Math.cos(angleRad)),
+    intersectY,
+  };
 }
 
 /**

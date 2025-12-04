@@ -33,7 +33,8 @@ function createLabelElement({ option, index, angle, isLeft, isSpokes, onClick })
   label.dataset.value = option.value;
   label.dataset.isLeft = isLeft ? 'true' : 'false';
 
-  label.style.position = 'absolute';
+  // Set CSS custom property for trigonometric positioning
+  label.style.setProperty('--label-angle', angle);
   label.addEventListener('click', onClick);
 
   return label;
@@ -120,13 +121,18 @@ function updateActiveStates({ labels, lines, activeIndex, activeOpacity, inactiv
  * @param {HTMLElement|null} params.knobWrap - Knob wrapper element
  */
 function clearContainers({ leftColumn, rightColumn, lineContainer, knobWrap }) {
-  if (leftColumn) leftColumn.innerHTML = '';
-  if (rightColumn) rightColumn.innerHTML = '';
-  if (lineContainer) lineContainer.innerHTML = '';
-  if (knobWrap) {
-    knobWrap.querySelectorAll('.dial-label').forEach((el) => el.remove());
-  }
+  leftColumn && (leftColumn.innerHTML = '');
+  rightColumn && (rightColumn.innerHTML = '');
+  lineContainer && (lineContainer.innerHTML = '');
+  knobWrap?.querySelectorAll('.dial-label').forEach((el) => el.remove());
 }
+
+/**
+ * Checks if a node is a dial-option element.
+ * @param {Node} node - DOM node to check
+ * @returns {boolean} True if node is a dial-option element
+ */
+const isDialOptionElement = (node) => node.nodeType === Node.ELEMENT_NODE && node.tagName === 'DIAL-OPTION';
 
 /**
  * Checks if mutations should trigger a component rebuild.
@@ -134,24 +140,14 @@ function clearContainers({ leftColumn, rightColumn, lineContainer, knobWrap }) {
  * @returns {boolean} True if rebuild is needed
  */
 function shouldRebuildFromMutations(mutations) {
-  for (const mutation of mutations) {
+  return mutations.some((mutation) => {
     if (mutation.type === 'childList') {
-      for (const node of mutation.addedNodes) {
-        if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'DIAL-OPTION') {
-          return true;
-        }
-      }
-      for (const node of mutation.removedNodes) {
-        if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'DIAL-OPTION') {
-          return true;
-        }
-      }
+      const hasAddedOption = [...mutation.addedNodes].some(isDialOptionElement);
+      const hasRemovedOption = [...mutation.removedNodes].some(isDialOptionElement);
+      if (hasAddedOption || hasRemovedOption) return true;
     }
-    if (mutation.type === 'attributes' && mutation.target.tagName === 'DIAL-OPTION') {
-      return true;
-    }
-  }
-  return false;
+    return mutation.type === 'attributes' && mutation.target.tagName === 'DIAL-OPTION';
+  });
 }
 
 /**

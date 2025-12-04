@@ -77,22 +77,19 @@ function calculateLabelGeometry({
  * @returns {{ leftColumnX: number, rightColumnX: number }}
  */
 function calculateColumnPositions(labelDataArray, horizontalLineLength) {
-  let leftColumnX = Infinity;
-  let rightColumnX = -Infinity;
+  return labelDataArray
+    .filter((data) => !data.useRadial)
+    .reduce(
+      (acc, data) => {
+        const defaultEndX = data.isLeft ? data.spokeEndX - horizontalLineLength : data.spokeEndX + horizontalLineLength;
 
-  labelDataArray.forEach((data) => {
-    if (data.useRadial) return;
-
-    const defaultEndX = data.isLeft ? data.spokeEndX - horizontalLineLength : data.spokeEndX + horizontalLineLength;
-
-    if (data.isLeft) {
-      leftColumnX = Math.min(leftColumnX, defaultEndX);
-    } else {
-      rightColumnX = Math.max(rightColumnX, defaultEndX);
-    }
-  });
-
-  return { leftColumnX, rightColumnX };
+        return {
+          leftColumnX: data.isLeft ? Math.min(acc.leftColumnX, defaultEndX) : acc.leftColumnX,
+          rightColumnX: data.isLeft ? acc.rightColumnX : Math.max(acc.rightColumnX, defaultEndX),
+        };
+      },
+      { leftColumnX: Infinity, rightColumnX: -Infinity }
+    );
 }
 
 /**

@@ -89,6 +89,19 @@ export function getStyles() {
         align-items: flex-start;
       }
 
+      /* Position labels within their columns */
+      .label-column.left .dial-label {
+        right: 0;
+        left: auto;
+        text-align: right;
+      }
+
+      .label-column.right .dial-label {
+        left: 0;
+        right: auto;
+        text-align: left;
+      }
+
       .knob-wrap {
         position: relative;
         width: var(--knob-wrap-size, 320px);
@@ -154,8 +167,13 @@ export function getStyles() {
         user-select: none;
         padding: clamp(4px, 1vw, 8px) clamp(6px, 1.5vw, 12px);
         position: absolute;
-        transform: translateY(-50%) translateX(var(--line-length-offset, 0px));
         white-space: nowrap;
+        /* CSS trigonometry for vertical positioning in column mode */
+        --label-angle-rad: calc(var(--label-angle, 0) * 1deg);
+        --column-center: calc(var(--label-column-height, 320px) / 2);
+        --vertical-offset: calc(sin(var(--label-angle-rad)) * var(--label-vertical-offset-scale, 140px));
+        top: calc(var(--column-center) + var(--vertical-offset));
+        transform: translateY(-50%);
       }
 
       .dial-label.active {
@@ -313,6 +331,26 @@ export function getStyles() {
         position: absolute;
         white-space: nowrap;
         padding: clamp(2px, 0.5vw, 4px) clamp(4px, 1vw, 8px);
+        /* CSS trigonometry for radial positioning in spokes mode */
+        --spokes-angle-rad: calc(var(--label-angle, 0) * 1deg);
+        --spokes-radius: calc(var(--radius-outer, 90px) + var(--max-spoke-length, 80px));
+        --spokes-center: var(--knob-center, 160px);
+        --spokes-x: calc(var(--spokes-center) + cos(var(--spokes-angle-rad)) * var(--spokes-radius));
+        --spokes-y: calc(var(--spokes-center) + sin(var(--spokes-angle-rad)) * var(--spokes-radius));
+        left: var(--spokes-x);
+        top: var(--spokes-y);
+        /* Reset column-mode positioning */
+        --vertical-offset: 0px;
+      }
+
+      :host([mode="spokes"]) .dial-label.spokes[data-is-left="true"] {
+        transform: translate(-100%, -50%);
+        text-align: right;
+      }
+
+      :host([mode="spokes"]) .dial-label.spokes[data-is-left="false"] {
+        transform: translate(0%, -50%);
+        text-align: left;
       }
     </style>
   `;
