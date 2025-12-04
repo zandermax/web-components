@@ -43,13 +43,13 @@ import '@zandermax/web-components/dial-selector.js';
 
 ## Attributes
 
-| Attribute | Description |
-|-----------|-------------|
-| `mode` | Layout mode. Use `"spokes"` for radial label positioning. |
-| `value` | Initial selected value. Must match a child `<dial-option>` value. |
-| `one-sided` | Show options on one side only. Values: `"left"`, `"right"`, `"inline-start"`, `"inline-end"` |
-| `time-selection-delay` | Delay before selection animation in milliseconds. |
-| `onchange` | JavaScript code executed when selection changes. |
+| Attribute              | Description                                                                                  |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `mode`                 | Layout mode. Use `"spokes"` for radial label positioning.                                    |
+| `value`                | Initial selected value. Must match a child `<dial-option>` value.                            |
+| `one-sided`            | Show options on one side only. Values: `"left"`, `"right"`, `"inline-start"`, `"inline-end"` |
+| `time-selection-delay` | Delay before selection animation in milliseconds.                                            |
+| `onchange`             | JavaScript code executed when selection changes.                                             |
 
 ## Events
 
@@ -62,4 +62,3 @@ document.querySelector('dial-selector').addEventListener('change', (event) => {
 ## License
 
 MIT
-

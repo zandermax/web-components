@@ -4,14 +4,38 @@
   "description": "Zander's custom web components",
   "author": "Zander Maxwell <zandermaxwell@hey.com>",
   "license": "MIT",
-  "main": "dial-selector.js",
-  "module": "dial-selector.js",
   "type": "module",
+  "main": "dist/dial-selector.cjs",
+  "module": "dist/dial-selector.js",
+  "browser": "dist/dial-selector.umd.js",
+  "exports": {
+    ".": {
+      "import": "./dist/dial-selector.js",
+      "require": "./dist/dial-selector.cjs",
+      "browser": "./dist/dial-selector.umd.js"
+    },
+    "./dial-selector": {
+      "import": "./dist/dial-selector.js",
+      "require": "./dist/dial-selector.cjs",
+      "browser": "./dist/dial-selector.umd.js"
+    }
+  },
   "files": [
-    "dial-selector.js",
-    "dial-selector.css",
-    "icons.svg"
+    "dist"
   ],
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c -w",
+    "serve": "browser-sync start --server --port 3000 --startPath /examples/ --files dist",
+    "dev": "concurrently \"npm:watch\" \"npm:serve\"",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@rollup/plugin-terser": "^0.4.4",
+    "browser-sync": "^3.0.4",
+    "concurrently": "^9.2.1",
+    "rollup": "^4.53.3"
+  },
   "keywords": [
     "web-components",
     "custom-elements",
@@ -27,4 +51,3 @@
   },
   "homepage": "https://github.com/zandermax/web-components#readme"
 }
-

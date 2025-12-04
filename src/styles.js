@@ -1,0 +1,349 @@
+/**
+ * Returns the CSS styles for the dial-selector component's shadow DOM.
+ * Separated into its own file for maintainability.
+ */
+export function getStyles() {
+  return `
+    <style>
+      :host {
+        --color-ink: #f4f4f4;
+        --color-selection: #f13b3b;
+        --color-line: #c7c2b5;
+        --indicator-color: #f13b3b;
+        --shadow: 0;
+        --label-radius: 150px;
+        --line-stroke-width: 2;
+        --line-opacity-inactive: 0.4;
+        --line-opacity-active: 0.8;
+        --line-transition: opacity 0.3s ease, stroke 0.3s ease;
+        --indicator-length: 60px;
+        --center-indicator: 0px;
+        --time-selection-delay: 0s;
+        --radius-outer: 90px;
+        --width-outer-circle: 4px;
+        --color-outer-circle: var(--color-ink);
+        --radius-inner: 72px;
+        --width-inner-circle: 2px;
+        --color-inner-circle: var(--color-ink);
+        --font-size: clamp(10px, 1.5vw, 14px);
+        --font-family: 'IBM Plex Mono', 'Courier New', monospace;
+        --knob-wrap-size: 320px;
+        --knob-center: 160px;
+        --label-column-height: 320px;
+        --label-vertical-offset-scale: 140px;
+        --horizontal-line-length: 100px;
+        --max-spoke-length: 80px;
+        --horizontal-line-end-offset: 10px;
+        --hit-area-stroke-width: 20px;
+        --indicator-width: 10px;
+        --component-width: 100%;
+        --component-height: auto;
+        --component-min-width: 200px;
+        --component-min-height: 200px;
+        --indicator-angle: 0deg;
+        display: block;
+        font-family: var(--font-family);
+        min-width: var(--component-min-width);
+        max-width: var(--component-width);
+        width: var(--component-width);
+        height: var(--component-height);
+        overflow: visible;
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :host * {
+        box-sizing: border-box;
+      }
+
+      .selector {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: clamp(12px, 4vw, 40px);
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: visible;
+      }
+
+      .label-column {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        height: var(--label-column-height, 320px);
+        margin: 0;
+        padding: 0;
+        overflow: visible;
+      }
+
+      .label-column.left {
+        align-items: flex-end;
+      }
+
+      .label-column.right {
+        align-items: flex-start;
+      }
+
+      .knob-wrap {
+        position: relative;
+        width: var(--knob-wrap-size, 320px);
+        aspect-ratio: 1;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        overflow: visible;
+      }
+
+      .knob {
+        position: relative;
+        width: calc(var(--radius-outer) * 2);
+        height: calc(var(--radius-outer) * 2);
+        border: var(--width-outer-circle) solid var(--color-outer-circle);
+        border-radius: 50%;
+        background: #11161c;
+        box-shadow: var(--shadow);
+        z-index: 2;
+        transform: rotate(calc(90deg + var(--indicator-angle)));
+        transform-origin: center center;
+        transition: var(
+          --indicator-transition,
+          transform 0.25s ease-in var(--time-selection-delay, 0s)
+        );
+      }
+
+      .indicator {
+        position: absolute;
+        width: var(--indicator-width, 10px);
+        height: var(--indicator-length, 60px);
+        background: var(--indicator-gradient, var(--indicator-color));
+        border-radius: calc(var(--indicator-width, 10px) / 2);
+        /* Fixed position: top center, pointing up */
+        top: calc(50% - var(--indicator-length, 60px) - var(--center-indicator, 0px));
+        left: calc(50% - var(--indicator-width, 10px) / 2);
+        /* No transform needed - knob rotates instead */
+      }
+
+      :host(.no-transitions) .knob {
+        transition: none;
+      }
+
+      .knob::before {
+        content: '';
+        position: absolute;
+        inset: calc(var(--radius-outer) - var(--radius-inner));
+        border: var(--width-inner-circle) solid var(--color-inner-circle);
+        border-radius: 50%;
+        opacity: 0.6;
+      }
+
+      .dial-label {
+        text-decoration: none;
+        color: inherit;
+        font-size: var(--font-size);
+        font-family: var(--font-family);
+        letter-spacing: clamp(0.5px, 0.1vw, 1px);
+        display: inline-flex;
+        align-items: center;
+        gap: 0;
+        cursor: pointer;
+        user-select: none;
+        padding: clamp(4px, 1vw, 8px) clamp(6px, 1.5vw, 12px);
+        position: absolute;
+        transform: translateY(-50%) translateX(var(--line-length-offset, 0px));
+        white-space: nowrap;
+      }
+
+      .dial-label.active {
+        color: var(--color-selection);
+      }
+
+      .dial-label.below-line {
+        white-space: nowrap;
+        padding-left: 0;
+        padding-right: 0;
+      }
+
+      /* Media sizing inside labels */
+      .dial-label img,
+      .dial-label svg {
+        max-height: 1.5em;
+        max-width: 3em;
+        vertical-align: middle;
+        object-fit: contain;
+        /* Allow animation control via CSS custom properties on ::part(label) / ::part(label-active) */
+        animation: var(--label-icon-animation, none);
+        opacity: var(--label-icon-opacity, 1);
+        transform: var(--label-icon-transform, none);
+        transition: var(--label-icon-transition, opacity 0.3s, transform 0.3s);
+      }
+
+      /* Built-in keyframes for icon animations */
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.3); }
+      }
+      @keyframes wiggle {
+        0%, 100% { transform: rotate(0deg); }
+        25% { transform: rotate(-15deg); }
+        75% { transform: rotate(15deg); }
+      }
+      @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-25%); }
+      }
+      @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.2; }
+      }
+
+      #lineContainer {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        overflow: visible;
+      }
+
+      .spoke-line {
+        transition: var(--line-transition, opacity 0.3s ease, stroke 0.3s ease);
+      }
+
+      :host(.no-transitions) .spoke-line {
+        transition: none;
+      }
+
+      .advance {
+        position: absolute;
+        inset: 0;
+        cursor: pointer;
+        pointer-events: auto;
+        background: transparent;
+      }
+
+      /* Slotted content styles for custom knob content */
+      ::slotted([slot="knob-content"]) {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+
+      ::slotted(img[slot="knob-content"]) {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        border-radius: 50%;
+      }
+
+      @media (max-width: 768px) {
+        .selector {
+          gap: clamp(8px, 2vw, 16px);
+        }
+
+        :host {
+          --font-size: clamp(12px, 2vw, 16px);
+        }
+
+        .dial-label {
+          padding: clamp(6px, 1.5vw, 10px) clamp(8px, 2vw, 14px);
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .selector {
+          gap: clamp(6px, 1.5vw, 12px);
+        }
+
+        :host {
+          --font-size: clamp(13px, 2.5vw, 18px);
+        }
+
+        .knob-wrap {
+          min-width: 200px;
+        }
+      }
+
+      /* One-sided mode: left only */
+      :host([data-one-sided="left"]) .selector {
+        grid-template-columns: 1fr auto;
+      }
+
+      :host([data-one-sided="left"]) .label-column.right {
+        display: none;
+      }
+
+      /* One-sided mode: right only */
+      :host([data-one-sided="right"]) .selector {
+        grid-template-columns: auto 1fr;
+      }
+
+      :host([data-one-sided="right"]) .label-column.left {
+        display: none;
+      }
+
+      /* Spokes mode styles */
+      :host([mode="spokes"]) .selector {
+        grid-template-columns: auto;
+        justify-items: center;
+      }
+
+      :host([mode="spokes"]) .label-column {
+        display: none;
+      }
+
+      :host([mode="spokes"]) .knob-wrap {
+        /* Ensure adequate size for radial labels */
+        overflow: visible;
+      }
+
+      :host([mode="spokes"]) .dial-label.spokes {
+        position: absolute;
+        white-space: nowrap;
+        padding: clamp(2px, 0.5vw, 4px) clamp(4px, 1vw, 8px);
+      }
+    </style>
+  `;
+}
+
+/**
+ * Returns the HTML template for the dial-selector component's shadow DOM.
+ */
+export function getTemplate() {
+  return `
+    <div class="selector" part="panel">
+      <div class="label-column left" id="leftColumn" part="labels label-row">
+        <!-- Left labels will be generated by JavaScript -->
+      </div>
+
+      <div class="knob-wrap" part="dial">
+        <svg id="lineContainer" width="100%" height="100%" style="position: absolute; overflow: visible;">
+          <!-- Lines will be generated by JavaScript -->
+        </svg>
+        <div class="knob" part="knob">
+          <slot name="knob-content">
+            <!-- Default indicator when no custom content provided -->
+            <div class="indicator" part="indicator"></div>
+          </slot>
+          <div class="advance" id="advanceButton" aria-label="Switch to next option"></div>
+        </div>
+      </div>
+
+      <div class="label-column right" id="rightColumn" part="labels label-row">
+        <!-- Right labels will be generated by JavaScript -->
+      </div>
+    </div>
+  `;
+}
