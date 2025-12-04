@@ -2,38 +2,52 @@
  * Event handling helpers for the dial-selector component.
  */
 
+import type { DialOption, DialChangeEventDetail } from '../types';
+
+/** Parameters for dispatchDialChangeEvent */
+type DispatchDialChangeEventParams = {
+  element: HTMLElement;
+  currentOption: DialOption | undefined;
+  previousOption: DialOption | undefined;
+  currentIndex: number;
+  previousIndex: number;
+};
+
 /**
  * Creates and dispatches a change event for the dial selector.
  * Handles both CustomEvent dispatch and onchange attribute execution.
- * @param {Object} params - Parameters
- * @param {HTMLElement} params.element - The custom element to dispatch from
- * @param {Object} params.currentOption - Current selected option { value, label }
- * @param {Object} params.previousOption - Previously selected option { value, label }
- * @param {number} params.currentIndex - Current selection index
- * @param {number} params.previousIndex - Previous selection index
+ * @param params - Parameters for event dispatch
  */
-function dispatchDialChangeEvent({ element, currentOption, previousOption, currentIndex, previousIndex }) {
-  const event = new CustomEvent('change', {
+function dispatchDialChangeEvent({
+  element,
+  currentOption,
+  previousOption,
+  currentIndex,
+  previousIndex,
+}: DispatchDialChangeEventParams): void {
+  const detail: DialChangeEventDetail = {
+    value: currentOption?.value || '',
+    label: currentOption?.label || '',
+    index: currentIndex,
+    previousValue: previousOption?.value || '',
+    previousLabel: previousOption?.label || '',
+    previousIndex: previousIndex,
+  };
+
+  const event = new CustomEvent<DialChangeEventDetail>('change', {
     bubbles: true,
     cancelable: true,
-    detail: {
-      value: currentOption?.value || currentOption,
-      label: currentOption?.label || currentOption,
-      index: currentIndex,
-      previousValue: previousOption?.value || previousOption,
-      previousLabel: previousOption?.label || previousOption,
-      previousIndex: previousIndex,
-    },
+    detail,
   });
 
   // Store original onchange to restore later
   const onchangeAttr = element.getAttribute('onchange');
-  const originalOnchange = element.onchange;
+  const originalOnchange = (element as HTMLElement & { onchange?: ((event: Event) => void) | null }).onchange;
 
   // Temporarily remove onchange to prevent browser from auto-executing it
   if (onchangeAttr) {
     element.removeAttribute('onchange');
-    delete element.onchange;
+    (element as HTMLElement & { onchange: ((event: Event) => void) | null }).onchange = null;
   }
 
   // Dispatch the event
@@ -42,7 +56,7 @@ function dispatchDialChangeEvent({ element, currentOption, previousOption, curre
   // Manually execute the handler
   if (onchangeAttr) {
     try {
-      const handler = new Function('event', onchangeAttr);
+      const handler = new Function('event', onchangeAttr) as (event: CustomEvent<DialChangeEventDetail>) => void;
       handler.call(element, event);
     } catch (e) {
       console.warn('Error executing onchange handler:', e);

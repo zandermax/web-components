@@ -2,12 +2,38 @@
  * Configuration parsing functions for the dial-selector component.
  */
 
+import type { DialOption, OneSidedConfig, SideCountsResult, OptionSideResult } from '../types';
+
+/** Arc configuration for angle generation */
+type ArcsConfig = {
+  LEFT_START: number;
+  LEFT_END: number;
+  RIGHT_START: number;
+  RIGHT_END: number;
+};
+
+/** Parameters for calculateSideCounts */
+type CalculateSideCountsParams = {
+  optionCount: number;
+  oneSided: OneSidedConfig;
+  arcs: ArcsConfig;
+  generateAngles: (count: number, start: number, end: number) => number[];
+};
+
+/** Parameters for resolveOptionSide */
+type ResolveOptionSideParams = {
+  index: number;
+  oneSided: OneSidedConfig;
+  leftCount: number;
+  rightCount: number;
+};
+
 /**
  * Parses the one-sided attribute value.
- * @param {string | null} value - The attribute value
- * @returns {'left' | 'right' | null} The normalized side, or null for both sides
+ * @param value - The attribute value
+ * @returns The normalized side, or null for both sides
  */
-function parseOneSidedValue(value) {
+function parseOneSidedValue(value: string | null): OneSidedConfig {
   if (!value) return null;
   const normalized = value.toLowerCase().trim();
   if (normalized === 'left' || normalized === 'inline-start') {
@@ -21,11 +47,11 @@ function parseOneSidedValue(value) {
 
 /**
  * Parses dial-option child elements into an options array.
- * @param {Element[]} childOptions - Array of dial-option elements
- * @param {string[]} defaultOptions - Default options if no children
- * @returns {Array<{value: string, label: string, htmlContent: string|null, lineLength: number|null}>}
+ * @param childOptions - Array of dial-option elements
+ * @param defaultOptions - Default options if no children
+ * @returns Array of parsed option objects
  */
-function parseChildOptions(childOptions, defaultOptions) {
+function parseChildOptions(childOptions: Element[], defaultOptions: readonly string[]): DialOption[] {
   if (childOptions.length === 0) {
     return defaultOptions.map((opt) => ({
       value: opt,
@@ -48,14 +74,10 @@ function parseChildOptions(childOptions, defaultOptions) {
 
 /**
  * Calculates left/right counts and spoke angles based on options and layout config.
- * @param {Object} params - Parameters
- * @param {number} params.optionCount - Total number of options
- * @param {'left'|'right'|null} params.oneSided - One-sided config
- * @param {Object} params.arcs - Arc configuration { LEFT_START, LEFT_END, RIGHT_START, RIGHT_END }
- * @param {function} params.generateAngles - Function to generate arc angles
- * @returns {{ leftCount: number, rightCount: number, spokeAngles: number[] }}
+ * @param params - Parameters for calculation
+ * @returns Object with leftCount, rightCount, and spokeAngles
  */
-function calculateSideCounts({ optionCount, oneSided, arcs, generateAngles }) {
+function calculateSideCounts({ optionCount, oneSided, arcs, generateAngles }: CalculateSideCountsParams): SideCountsResult {
   if (oneSided === 'left') {
     return {
       leftCount: optionCount,
@@ -84,14 +106,10 @@ function calculateSideCounts({ optionCount, oneSided, arcs, generateAngles }) {
 
 /**
  * Resolves the placement (side, angle index) for an option.
- * @param {Object} params - Parameters
- * @param {number} params.index - Option index
- * @param {'left'|'right'|null} params.oneSided - One-sided config
- * @param {number} params.leftCount - Count of left options
- * @param {number} params.rightCount - Count of right options
- * @returns {{ isLeft: boolean, angleIndex: number }}
+ * @param params - Parameters for resolution
+ * @returns Object with isLeft boolean and angleIndex
  */
-function resolveOptionSide({ index, oneSided, leftCount, rightCount }) {
+function resolveOptionSide({ index, oneSided, leftCount, rightCount }: ResolveOptionSideParams): OptionSideResult {
   if (oneSided === 'left') {
     return { isLeft: true, angleIndex: index };
   }

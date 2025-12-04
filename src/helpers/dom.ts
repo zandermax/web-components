@@ -2,18 +2,55 @@
  * DOM element creation helpers for the dial-selector component.
  */
 
+import type { DialOption } from '../types';
+
+/** Parameters for createLabelElement */
+type CreateLabelElementParams = {
+  option: DialOption;
+  index: number;
+  angle: number;
+  isLeft: boolean;
+  isSpokes: boolean;
+  onClick: () => void;
+};
+
+/** Parameters for createLineElement */
+type CreateLineElementParams = {
+  index: number;
+  strokeWidth: number;
+  opacity: number;
+};
+
+/** Parameters for createHitAreaElement */
+type CreateHitAreaElementParams = {
+  index: number;
+  hitAreaStrokeWidth: number;
+  onClick: () => void;
+};
+
+/** Parameters for updateActiveStates */
+type UpdateActiveStatesParams = {
+  labels: HTMLElement[];
+  lines: SVGElement[];
+  activeIndex: number;
+  activeOpacity: number;
+  inactiveOpacity: number;
+};
+
+/** Parameters for clearContainers */
+type ClearContainersParams = {
+  leftColumn: HTMLElement | null;
+  rightColumn: HTMLElement | null;
+  lineContainer: SVGElement | null;
+  knobWrap: HTMLElement | null;
+};
+
 /**
  * Creates a label element for a dial option.
- * @param {Object} params - Parameters
- * @param {Object} params.option - The option object { value, label, htmlContent }
- * @param {number} params.index - Option index
- * @param {number} params.angle - Angle in degrees
- * @param {boolean} params.isLeft - Whether on left side
- * @param {boolean} params.isSpokes - Whether in spokes mode
- * @param {function} params.onClick - Click handler
- * @returns {HTMLLabelElement} The created label element
+ * @param params - Parameters for creation
+ * @returns The created label element
  */
-function createLabelElement({ option, index, angle, isLeft, isSpokes, onClick }) {
+function createLabelElement({ option, index, angle, isLeft, isSpokes, onClick }: CreateLabelElementParams): HTMLLabelElement {
   const label = document.createElement('label');
   label.className = 'dial-label';
   if (isSpokes) {
@@ -28,13 +65,13 @@ function createLabelElement({ option, index, angle, isLeft, isSpokes, onClick })
     label.textContent = option.label;
   }
 
-  label.dataset.index = index;
-  label.dataset.angle = angle;
+  label.dataset.index = String(index);
+  label.dataset.angle = String(angle);
   label.dataset.value = option.value;
   label.dataset.isLeft = isLeft ? 'true' : 'false';
 
   // Set CSS custom property for trigonometric positioning
-  label.style.setProperty('--label-angle', angle);
+  label.style.setProperty('--label-angle', String(angle));
   label.addEventListener('click', onClick);
 
   return label;
@@ -42,13 +79,10 @@ function createLabelElement({ option, index, angle, isLeft, isSpokes, onClick })
 
 /**
  * Creates an SVG polyline element for a spoke line.
- * @param {Object} params - Parameters
- * @param {number} params.index - Option index
- * @param {number} params.strokeWidth - Line stroke width
- * @param {number} params.opacity - Line opacity
- * @returns {SVGPolylineElement} The created polyline element
+ * @param params - Parameters for creation
+ * @returns The created polyline element
  */
-function createLineElement({ index, strokeWidth, opacity }) {
+function createLineElement({ index, strokeWidth, opacity }: CreateLineElementParams): SVGPolylineElement {
   const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
   line.setAttribute('class', 'spoke-line');
   line.setAttribute('fill', 'none');
@@ -57,19 +91,16 @@ function createLineElement({ index, strokeWidth, opacity }) {
   line.setAttribute('opacity', `var(--line-opacity-inactive, ${opacity})`);
   line.setAttribute('stroke-linejoin', 'miter');
   line.setAttribute('pointer-events', 'none');
-  line.dataset.index = index;
+  line.dataset.index = String(index);
   return line;
 }
 
 /**
  * Creates an invisible SVG polyline for hit area (easier clicking).
- * @param {Object} params - Parameters
- * @param {number} params.index - Option index
- * @param {number} params.hitAreaStrokeWidth - Hit area stroke width
- * @param {function} params.onClick - Click handler
- * @returns {SVGPolylineElement} The created hit area element
+ * @param params - Parameters for creation
+ * @returns The created hit area element
  */
-function createHitAreaElement({ index, hitAreaStrokeWidth, onClick }) {
+function createHitAreaElement({ index, hitAreaStrokeWidth, onClick }: CreateHitAreaElementParams): SVGPolylineElement {
   const hitArea = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
   hitArea.setAttribute('class', 'spoke-line-hit-area');
   hitArea.setAttribute('fill', 'none');
@@ -78,7 +109,7 @@ function createHitAreaElement({ index, hitAreaStrokeWidth, onClick }) {
   hitArea.setAttribute('stroke-linejoin', 'miter');
   hitArea.setAttribute('pointer-events', 'auto');
   hitArea.style.cursor = 'pointer';
-  hitArea.dataset.index = index;
+  hitArea.dataset.index = String(index);
   hitArea.setAttribute('points', '');
   hitArea.addEventListener('click', onClick);
   return hitArea;
@@ -86,14 +117,9 @@ function createHitAreaElement({ index, hitAreaStrokeWidth, onClick }) {
 
 /**
  * Updates visual state of labels and lines based on active selection.
- * @param {Object} params - Parameters
- * @param {HTMLElement[]} params.labels - Array of label elements
- * @param {SVGElement[]} params.lines - Array of line elements
- * @param {number} params.activeIndex - Currently active index
- * @param {number} params.activeOpacity - Opacity for active line
- * @param {number} params.inactiveOpacity - Opacity for inactive lines
+ * @param params - Parameters for update
  */
-function updateActiveStates({ labels, lines, activeIndex, activeOpacity, inactiveOpacity }) {
+function updateActiveStates({ labels, lines, activeIndex, activeOpacity, inactiveOpacity }: UpdateActiveStatesParams): void {
   labels.forEach((label, index) => {
     const line = lines[index];
     if (index === activeIndex) {
@@ -114,49 +140,46 @@ function updateActiveStates({ labels, lines, activeIndex, activeOpacity, inactiv
 
 /**
  * Clears existing labels and lines from containers.
- * @param {Object} params - Parameters
- * @param {HTMLElement|null} params.leftColumn - Left column container
- * @param {HTMLElement|null} params.rightColumn - Right column container
- * @param {SVGElement|null} params.lineContainer - SVG container for lines
- * @param {HTMLElement|null} params.knobWrap - Knob wrapper element
+ * @param params - Parameters for clearing
  */
-function clearContainers({ leftColumn, rightColumn, lineContainer, knobWrap }) {
-  leftColumn && (leftColumn.innerHTML = '');
-  rightColumn && (rightColumn.innerHTML = '');
-  lineContainer && (lineContainer.innerHTML = '');
+function clearContainers({ leftColumn, rightColumn, lineContainer, knobWrap }: ClearContainersParams): void {
+  if (leftColumn) leftColumn.innerHTML = '';
+  if (rightColumn) rightColumn.innerHTML = '';
+  if (lineContainer) lineContainer.innerHTML = '';
   knobWrap?.querySelectorAll('.dial-label').forEach((el) => el.remove());
 }
 
 /**
  * Checks if a node is a dial-option element.
- * @param {Node} node - DOM node to check
- * @returns {boolean} True if node is a dial-option element
+ * @param node - DOM node to check
+ * @returns True if node is a dial-option element
  */
-const isDialOptionElement = (node) => node.nodeType === Node.ELEMENT_NODE && node.tagName === 'DIAL-OPTION';
+const isDialOptionElement = (node: Node): node is Element =>
+  node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === 'DIAL-OPTION';
 
 /**
  * Checks if mutations should trigger a component rebuild.
- * @param {MutationRecord[]} mutations - Array of mutation records
- * @returns {boolean} True if rebuild is needed
+ * @param mutations - Array of mutation records
+ * @returns True if rebuild is needed
  */
-function shouldRebuildFromMutations(mutations) {
+function shouldRebuildFromMutations(mutations: MutationRecord[]): boolean {
   return mutations.some((mutation) => {
     if (mutation.type === 'childList') {
       const hasAddedOption = [...mutation.addedNodes].some(isDialOptionElement);
       const hasRemovedOption = [...mutation.removedNodes].some(isDialOptionElement);
       if (hasAddedOption || hasRemovedOption) return true;
     }
-    return mutation.type === 'attributes' && mutation.target.tagName === 'DIAL-OPTION';
+    return mutation.type === 'attributes' && (mutation.target as Element).tagName === 'DIAL-OPTION';
   });
 }
 
 /**
  * Finds an option index by value.
- * @param {Array<{value: string}>} options - Options array
- * @param {string} value - Value to find
- * @returns {number} Index of option, or -1 if not found
+ * @param options - Options array
+ * @param value - Value to find
+ * @returns Index of option, or -1 if not found
  */
-function findOptionIndexByValue(options, value) {
+function findOptionIndexByValue(options: DialOption[], value: string): number {
   return options.findIndex((opt) => opt.value === value);
 }
 

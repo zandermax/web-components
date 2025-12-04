@@ -2,15 +2,61 @@
  * Dimension parsing and calculation functions for the dial-selector component.
  */
 
+import type { KnobScaleResult, KnobRadii, ParsedDimensions, SelectionDelayResult } from '../types';
+
+/** Default values for LINE constants */
+type LineDefaults = {
+  HORIZONTAL_LENGTH: number;
+  MAX_SPOKE_LENGTH: number;
+  HORIZONTAL_END_OFFSET: number;
+};
+
+/** Default values for HIT_AREA constants */
+type HitAreaDefaults = {
+  STROKE_WIDTH: number;
+};
+
+/** Default values for KNOB constants */
+type KnobDefaults = {
+  RADIUS_OUTER: number;
+  RADIUS_INNER: number;
+};
+
+/** Parameters for parseDimensionsFromCSS */
+type ParseDimensionsParams = {
+  computedStyle: CSSStyleDeclaration;
+  defaults: { LINE: LineDefaults; HIT_AREA: HitAreaDefaults };
+  roundFn: (value: number) => number;
+};
+
+/** Parameters for parseKnobRadii */
+type ParseKnobRadiiParams = {
+  computedStyle: CSSStyleDeclaration;
+  defaults: KnobDefaults;
+  roundFn: (value: number) => number;
+};
+
+/** Parameters for calculateKnobScale */
+type CalculateKnobScaleParams = {
+  actualSize: number;
+  baseSize: number;
+  roundFn: (value: number) => number;
+};
+
 /**
  * Parses a CSS property value as a float with a fallback.
- * @param {CSSStyleDeclaration} computedStyle - The computed style object
- * @param {string} propertyName - CSS custom property name
- * @param {number} fallback - Fallback value if parsing fails
- * @param {function} roundFn - Rounding function
- * @returns {number} The parsed value
+ * @param computedStyle - The computed style object
+ * @param propertyName - CSS custom property name
+ * @param fallback - Fallback value if parsing fails
+ * @param roundFn - Rounding function
+ * @returns The parsed value
  */
-function parseCSSValue(computedStyle, propertyName, fallback, roundFn) {
+function parseCSSValue(
+  computedStyle: CSSStyleDeclaration,
+  propertyName: string,
+  fallback: number,
+  roundFn: (value: number) => number
+): number {
   const rawValue = computedStyle.getPropertyValue(propertyName).trim();
   const parsed = parseFloat(rawValue);
   return roundFn(Number.isNaN(parsed) ? fallback : parsed);
@@ -18,13 +64,10 @@ function parseCSSValue(computedStyle, propertyName, fallback, roundFn) {
 
 /**
  * Parses all dimension CSS custom properties.
- * @param {Object} params - Parameters
- * @param {CSSStyleDeclaration} params.computedStyle - The computed style object
- * @param {Object} params.defaults - Default values { LINE, HIT_AREA }
- * @param {function} params.roundFn - Rounding function
- * @returns {Object} Parsed dimensions
+ * @param params - Parameters for parsing
+ * @returns Parsed dimensions object
  */
-function parseDimensionsFromCSS({ computedStyle, defaults, roundFn }) {
+function parseDimensionsFromCSS({ computedStyle, defaults, roundFn }: ParseDimensionsParams): ParsedDimensions {
   return {
     horizontalLineLength: parseCSSValue(
       computedStyle,
@@ -50,13 +93,10 @@ function parseDimensionsFromCSS({ computedStyle, defaults, roundFn }) {
 
 /**
  * Parses knob radii from CSS custom properties.
- * @param {Object} params - Parameters
- * @param {CSSStyleDeclaration} params.computedStyle - The computed style object
- * @param {Object} params.defaults - Default values { RADIUS_OUTER, RADIUS_INNER }
- * @param {function} params.roundFn - Rounding function
- * @returns {{ scaledRadiusOuter: number, scaledRadiusInner: number }}
+ * @param params - Parameters for parsing
+ * @returns Object with scaledRadiusOuter and scaledRadiusInner
  */
-function parseKnobRadii({ computedStyle, defaults, roundFn }) {
+function parseKnobRadii({ computedStyle, defaults, roundFn }: ParseKnobRadiiParams): KnobRadii {
   return {
     scaledRadiusOuter: parseCSSValue(computedStyle, '--radius-outer', defaults.RADIUS_OUTER, roundFn),
     scaledRadiusInner: parseCSSValue(computedStyle, '--radius-inner', defaults.RADIUS_INNER, roundFn),
@@ -65,13 +105,10 @@ function parseKnobRadii({ computedStyle, defaults, roundFn }) {
 
 /**
  * Calculates knob wrap size and center from element dimensions.
- * @param {Object} params - Parameters
- * @param {number} params.actualSize - The actual rendered size
- * @param {number} params.baseSize - The base reference size
- * @param {function} params.roundFn - Rounding function
- * @returns {{ knobWrapSize: number, knobCenter: number, scale: number }}
+ * @param params - Parameters for calculation
+ * @returns Object with knobWrapSize, knobCenter, and scale
  */
-function calculateKnobScale({ actualSize, baseSize, roundFn }) {
+function calculateKnobScale({ actualSize, baseSize, roundFn }: CalculateKnobScaleParams): KnobScaleResult {
   const knobWrapSize = roundFn(actualSize);
   const knobCenter = roundFn(knobWrapSize / 2);
   const scale = roundFn(knobWrapSize / baseSize);
@@ -80,11 +117,14 @@ function calculateKnobScale({ actualSize, baseSize, roundFn }) {
 
 /**
  * Computes selection delay CSS properties.
- * @param {string|null} delayAttr - The time-selection-delay attribute value
- * @param {function} roundFn - Rounding function
- * @returns {{ delay: string|null, disableTransitions: boolean }|null} null if no delay attr
+ * @param delayAttr - The time-selection-delay attribute value
+ * @param roundFn - Rounding function
+ * @returns Selection delay result or null if no delay attr
  */
-function computeSelectionDelay(delayAttr, roundFn) {
+function computeSelectionDelay(
+  delayAttr: string | null,
+  roundFn: (value: number) => number
+): SelectionDelayResult | null {
   if (!delayAttr) return null;
 
   const delayMs = parseFloat(delayAttr);

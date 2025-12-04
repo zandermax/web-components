@@ -15,12 +15,12 @@
  * `value`: The initial selected value. Must match the value attribute of a child dial-option element.
  *
  */
-export const ATTRIBUTES = ['mode', 'onchange', 'one-sided', 'time-selection-delay', 'value'];
+export const ATTRIBUTES = ['mode', 'onchange', 'one-sided', 'time-selection-delay', 'value'] as const;
 
-export const FULL_CIRCLE_DEGREES = 360;
+export const FULL_CIRCLE_DEGREES = 360 as const;
 
 // Configuration constants
-export const DEFAULT_OPTIONS = ['AUX', 'CD', 'PHONO-1', 'PHONO-2', 'STREAM', 'TAPE', 'TUNER', 'TV'];
+export const DEFAULT_OPTIONS = ['AUX', 'CD', 'PHONO-1', 'PHONO-2', 'STREAM', 'TAPE', 'TUNER', 'TV'] as const;
 
 // Arc base values - left side is primary, right side is derived
 // Note: the base axis is based on polar coordinates, so 0° is directly to the right, 180° is directly to the left.
@@ -36,46 +36,46 @@ export const ARCS = {
   // Right side (derived from left side - 180° offset)
   RIGHT_START: LEFT_START_DEGREES - HALF_CIRCLE,
   RIGHT_END: LEFT_END_DEGREES - HALF_CIRCLE,
-};
+} as const;
 
 export const KNOB = {
   WRAP_SIZE: 320,
   RADIUS_OUTER: 90,
   RADIUS_INNER: 72,
-};
+} as const;
 
 export const LABEL = {
   COLUMN_HEIGHT: 320,
   VERTICAL_OFFSET_SCALE: 140,
-};
+} as const;
 
 export const LINE = {
   HORIZONTAL_LENGTH: 100,
   MAX_SPOKE_LENGTH: 80,
   STROKE_WIDTH: 2,
   HORIZONTAL_END_OFFSET: 10,
-};
+} as const;
 
 export const INDICATOR = {
   WIDTH: 10, // Default indicator width
-};
+} as const;
 
 export const HIT_AREA = {
   STROKE_WIDTH: 20,
-};
+} as const;
 
 export const OPACITY = {
   LINE_INACTIVE: 0.4,
   LINE_ACTIVE: 0.8,
-};
+} as const;
 
 export const ANIMATION = {
   INITIALIZATION_DELAY: 100,
-};
+} as const;
 
 export const THRESHOLDS = {
   NEARLY_HORIZONTAL: 0.0001,
-};
+} as const;
 
 export const COLORS = {
   RAINBOW: [
@@ -87,4 +87,4 @@ export const COLORS = {
     '#4b0082', // Indigo
     '#9400d3', // Violet
   ],
-};
+} as const;

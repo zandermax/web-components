@@ -19,6 +19,31 @@ import linesHelper from './helpers/lines';
 import labelsHelper from './helpers/labels';
 import domHelper from './helpers/dom';
 import eventsHelper from './helpers/events';
+import type { DialOption, OneSidedConfig, LabelData, KnobRadii } from './types';
+
+/** Parameters for handleAttributeChange */
+type AttributeChangeParams = {
+  name: string;
+  oldValue: string | null;
+  newValue: string | null;
+};
+
+/** Parameters for resolveOptionPlacement */
+type ResolveOptionPlacementParams = {
+  index: number;
+  oneSided: OneSidedConfig;
+  isSpokes: boolean;
+  knobWrap: Element | null;
+  leftColumn: Element | null;
+  rightColumn: Element | null;
+};
+
+/** Result of resolveOptionPlacement */
+type OptionPlacementResult = {
+  isLeft: boolean;
+  container: Element | null;
+  angle: number;
+};
 
 /**
  * A custom web component that renders a dial selector interface with labels,
@@ -27,27 +52,27 @@ import eventsHelper from './helpers/events';
  */
 class DialSelector extends HTMLElement {
   // Private fields
-  #currentIndex = 0;
-  #previousIndex = -1;
-  #currentAngle = 0;
-  #isInitialized = false;
-  #labels = [];
-  #lines = [];
-  #hitAreas = [];
-  #spokeAngles = [];
-  #rightCount = 0;
-  #leftCount = 0;
-  #resizeObserver = null;
-  #childObserver = null;
-  #options = []; // Array of { value: string, label: string }
-  #hasConnected = false;
-  #resizeHandler = null;
+  #currentIndex: number = 0;
+  #previousIndex: number = -1;
+  #currentAngle: number = 0;
+  #isInitialized: boolean = false;
+  #labels: HTMLLabelElement[] = [];
+  #lines: SVGPolylineElement[] = [];
+  #hitAreas: SVGPolylineElement[] = [];
+  #spokeAngles: number[] = [];
+  #rightCount: number = 0;
+  #leftCount: number = 0;
+  #resizeObserver: ResizeObserver | null = null;
+  #childObserver: MutationObserver | null = null;
+  #options: DialOption[] = [];
+  #hasConnected: boolean = false;
+  #resizeHandler: (() => void) | null = null;
   // Dynamic dimensions (read from CSS computed styles)
-  #knobWrapSize = KNOB.WRAP_SIZE;
-  #horizontalLineLength = LINE.HORIZONTAL_LENGTH;
-  #maxSpokeLength = LINE.MAX_SPOKE_LENGTH;
-  #hitAreaStrokeWidth = HIT_AREA.STROKE_WIDTH;
-  #horizontalLineEndOffset = LINE.HORIZONTAL_END_OFFSET;
+  #knobWrapSize: number = KNOB.WRAP_SIZE;
+  #horizontalLineLength: number = LINE.HORIZONTAL_LENGTH;
+  #maxSpokeLength: number = LINE.MAX_SPOKE_LENGTH;
+  #hitAreaStrokeWidth: number = HIT_AREA.STROKE_WIDTH;
+  #horizontalLineEndOffset: number = LINE.HORIZONTAL_END_OFFSET;
 
   constructor() {
     super();
@@ -57,24 +82,24 @@ class DialSelector extends HTMLElement {
 
   static observedAttributes = ATTRIBUTES;
 
-  initializeOptions() {
+  initializeOptions(): void {
     const childOptions = Array.from(this.querySelectorAll('dial-option'));
     this.#options = configHelper.parseChildOptions(childOptions, DEFAULT_OPTIONS);
   }
 
-  initializeAttributes() {
+  initializeAttributes(): void {
     this.updateSelectionDelay();
     this.updateDimensions();
   }
 
-  setupGeometry() {
+  setupGeometry(): void {
     // buildDOM is now called in connectedCallback if needed
     this.calculateAngles();
     this.updateDimensions();
     this.createLabelsAndLines();
   }
 
-  finalizeInitialization() {
+  finalizeInitialization(): void {
     setTimeout(() => {
       this.updateLines();
       this.updateSelector();
@@ -83,7 +108,7 @@ class DialSelector extends HTMLElement {
     }, ANIMATION.INITIALIZATION_DELAY);
   }
 
-  connectedCallback() {
+  connectedCallback(): void {
     // Avoid re-running init if the element is moved in the DOM
     if (this.#hasConnected) return;
     this.#hasConnected = true;
@@ -95,7 +120,7 @@ class DialSelector extends HTMLElement {
 
     // Do everything that depends on children in the *next task*,
     // so the parser has had time to create <dial-option> children.
-    const init = () => {
+    const init = (): void => {
       this.initializeOptions(); // <-- now sees real <dial-option> children
       this.initializeAttributes();
       this.setupGeometry();
@@ -107,7 +132,7 @@ class DialSelector extends HTMLElement {
 
       // One-time window resize handler
       if (!this.#resizeHandler) {
-        this.#resizeHandler = () => {
+        this.#resizeHandler = (): void => {
           this.withoutTransitions(() => {
             this.updateDimensions();
             this.updateLines();
@@ -129,7 +154,7 @@ class DialSelector extends HTMLElement {
     }
   }
 
-  disconnectedCallback() {
+  disconnectedCallback(): void {
     if (this.#resizeObserver) {
       this.#resizeObserver.disconnect();
       this.#resizeObserver = null;
@@ -144,15 +169,15 @@ class DialSelector extends HTMLElement {
     }
   }
 
-  attributeChangedCallback(name, oldValue, newValue) {
+  attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
     this.handleAttributeChange({ name, oldValue, newValue });
   }
 
   /**
    * Executes a callback with transitions temporarily disabled.
-   * @param {Function} callback - The function to execute without transitions
+   * @param callback - The function to execute without transitions
    */
-  withoutTransitions(callback) {
+  withoutTransitions(callback: () => void): void {
     this.classList.add('no-transitions');
     callback();
     requestAnimationFrame(() => {
@@ -164,9 +189,9 @@ class DialSelector extends HTMLElement {
 
   /**
    * Selects an option by index and updates the selector.
-   * @param {number} index - The index of the option to select
+   * @param index - The index of the option to select
    */
-  selectIndex(index) {
+  selectIndex(index: number): void {
     if (index >= 0 && index < this.#options.length) {
       this.#currentIndex = index;
       this.updateSelector();
@@ -181,8 +206,8 @@ class DialSelector extends HTMLElement {
     }
   }
 
-  handleAttributeChange({ name, oldValue, newValue }) {
-    const ATTRIBUTE_HANDLERS = {
+  handleAttributeChange({ name, oldValue, newValue }: AttributeChangeParams): void {
+    const ATTRIBUTE_HANDLERS: Record<string, () => void> = {
       mode: () => this.handleModeChange(),
       'time-selection-delay': () => this.updateSelectionDelay(),
       'one-sided': () => this.handleOneSidedChange(),
@@ -196,21 +221,21 @@ class DialSelector extends HTMLElement {
     ATTRIBUTE_HANDLERS[name]?.();
   }
 
-  handleOneSidedChange() {
+  handleOneSidedChange(): void {
     if (this.#isInitialized) {
       // Rebuild component when one-sided mode changes
       this.rebuildComponent();
     }
   }
 
-  handleModeChange() {
+  handleModeChange(): void {
     if (this.#isInitialized) {
       // Rebuild component when mode changes
       this.rebuildComponent();
     }
   }
 
-  handleValueChange(newValue) {
+  handleValueChange(newValue: string | null): void {
     if (newValue && this.#isInitialized) {
       const index = domHelper.findOptionIndexByValue(this.#options, newValue);
       if (index !== -1 && index !== this.#currentIndex) {
@@ -220,7 +245,7 @@ class DialSelector extends HTMLElement {
     }
   }
 
-  setInitialSelection() {
+  setInitialSelection(): void {
     const valueAttr = this.getAttribute('value');
     if (valueAttr) {
       const index = domHelper.findOptionIndexByValue(this.#options, valueAttr);
@@ -238,7 +263,7 @@ class DialSelector extends HTMLElement {
     }
   }
 
-  rebuildComponent() {
+  rebuildComponent(): void {
     this.#labels = [];
     this.#lines = [];
     this.#spokeAngles = [];
@@ -257,7 +282,7 @@ class DialSelector extends HTMLElement {
     }, ANIMATION.INITIALIZATION_DELAY);
   }
 
-  setupChildObserver() {
+  setupChildObserver(): void {
     this.#childObserver = new MutationObserver((mutations) => {
       if (domHelper.shouldRebuildFromMutations(mutations) && this.#isInitialized) {
         this.initializeOptions();
@@ -274,7 +299,7 @@ class DialSelector extends HTMLElement {
     });
   }
 
-  updateSelectionDelay() {
+  updateSelectionDelay(): void {
     const result = dimensionsHelper.computeSelectionDelay(
       this.getAttribute('time-selection-delay'),
       mathHelper.roundToThousandths
@@ -296,7 +321,7 @@ class DialSelector extends HTMLElement {
     }
   }
 
-  setupResizeObserver() {
+  setupResizeObserver(): void {
     if (typeof ResizeObserver !== 'undefined') {
       this.#resizeObserver = new ResizeObserver(() => {
         this.withoutTransitions(() => {
@@ -308,18 +333,18 @@ class DialSelector extends HTMLElement {
     }
   }
 
-  validateContainer() {
+  validateContainer(): boolean {
     const containerWidth = this.getBoundingClientRect().width;
     if (containerWidth === 0) {
       return false;
     }
-    const knobWrap = this.shadowRoot.querySelector('.knob-wrap');
-    const selector = this.shadowRoot.querySelector('.selector');
+    const knobWrap = this.shadowRoot!.querySelector('.knob-wrap');
+    const selector = this.shadowRoot!.querySelector('.selector');
     return !!(knobWrap && selector);
   }
 
-  calculateScale() {
-    const knobWrap = this.shadowRoot.querySelector('.knob-wrap');
+  calculateScale(): number {
+    const knobWrap = this.shadowRoot!.querySelector('.knob-wrap')!;
     const actualSize = knobWrap.getBoundingClientRect().width;
 
     const { knobWrapSize, scale } = dimensionsHelper.calculateKnobScale({
@@ -332,7 +357,7 @@ class DialSelector extends HTMLElement {
     return scale;
   }
 
-  updateKnobRadii() {
+  updateKnobRadii(): KnobRadii {
     return dimensionsHelper.parseKnobRadii({
       computedStyle: getComputedStyle(this),
       defaults: KNOB,
@@ -340,7 +365,7 @@ class DialSelector extends HTMLElement {
     });
   }
 
-  updateScaledDimensions() {
+  updateScaledDimensions(): void {
     const dims = dimensionsHelper.parseDimensionsFromCSS({
       computedStyle: getComputedStyle(this),
       defaults: { LINE, HIT_AREA },
@@ -357,7 +382,7 @@ class DialSelector extends HTMLElement {
    * Updates all component dimensions based on CSS values.
    * Reads CSS custom properties and updates internal dimension values for positioning.
    */
-  updateDimensions() {
+  updateDimensions(): void {
     if (!this.validateContainer()) {
       return;
     }
@@ -368,28 +393,28 @@ class DialSelector extends HTMLElement {
     // Label positions now update automatically via CSS custom properties
   }
 
-  buildDOM() {
+  buildDOM(): void {
     // Use imported styles and template
-    this.shadowRoot.innerHTML = getStyles() + getTemplate();
+    this.shadowRoot!.innerHTML = getStyles() + getTemplate();
   }
 
   /**
    * Checks if spokes mode is enabled.
-   * @returns {boolean} True if mode="spokes" attribute is set
+   * @returns True if mode="spokes" attribute is set
    */
-  isSpokesMode() {
+  isSpokesMode(): boolean {
     return this.getAttribute('mode') === 'spokes';
   }
 
   /**
    * Gets the one-sided configuration from the attribute.
-   * @returns {'left' | 'right' | null} The side to show options on, or null for both sides
+   * @returns The side to show options on, or null for both sides
    */
-  getOneSidedConfig() {
+  getOneSidedConfig(): OneSidedConfig {
     return configHelper.parseOneSidedValue(this.getAttribute('one-sided'));
   }
 
-  calculateAngles() {
+  calculateAngles(): void {
     const { leftCount, rightCount, spokeAngles } = configHelper.calculateSideCounts({
       optionCount: this.#options.length,
       oneSided: this.getOneSidedConfig(),
@@ -402,17 +427,17 @@ class DialSelector extends HTMLElement {
     this.#spokeAngles = spokeAngles;
   }
 
-  createLabelsAndLines() {
+  createLabelsAndLines(): void {
     // Ensure DOM is built
     if (!this.shadowRoot || !this.shadowRoot.querySelector('#lineContainer')) {
       this.buildDOM();
     }
 
-    const leftColumn = this.shadowRoot.querySelector('#leftColumn');
-    const rightColumn = this.shadowRoot.querySelector('#rightColumn');
-    const lineContainer = this.shadowRoot.querySelector('#lineContainer');
-    const knobWrap = this.shadowRoot.querySelector('.knob-wrap');
-    const advanceButton = this.shadowRoot.querySelector('#advanceButton');
+    const leftColumn = this.shadowRoot!.querySelector('#leftColumn') as HTMLElement | null;
+    const rightColumn = this.shadowRoot!.querySelector('#rightColumn') as HTMLElement | null;
+    const lineContainer = this.shadowRoot!.querySelector('#lineContainer') as SVGElement | null;
+    const knobWrap = this.shadowRoot!.querySelector('.knob-wrap') as HTMLElement | null;
+    const advanceButton = this.shadowRoot!.querySelector('#advanceButton');
     const oneSided = this.getOneSidedConfig();
     const isSpokes = this.isSpokesMode();
 
@@ -461,8 +486,8 @@ class DialSelector extends HTMLElement {
         opacity: OPACITY.LINE_INACTIVE,
       });
 
-      lineContainer.appendChild(hitArea);
-      lineContainer.appendChild(line);
+      lineContainer!.appendChild(hitArea);
+      lineContainer!.appendChild(line);
       this.#lines.push(line);
       this.#hitAreas.push(hitArea);
     });
@@ -478,7 +503,14 @@ class DialSelector extends HTMLElement {
   /**
    * Resolves the placement (side, container, angle) for an option.
    */
-  resolveOptionPlacement({ index, oneSided, isSpokes, knobWrap, leftColumn, rightColumn }) {
+  resolveOptionPlacement({
+    index,
+    oneSided,
+    isSpokes,
+    knobWrap,
+    leftColumn,
+    rightColumn,
+  }: ResolveOptionPlacementParams): OptionPlacementResult {
     const { isLeft, angleIndex } = configHelper.resolveOptionSide({
       index,
       oneSided,
@@ -493,8 +525,8 @@ class DialSelector extends HTMLElement {
   // Label positioning is now handled entirely by CSS using sin() and cos()
   // See styles.js .dial-label and :host([mode="spokes"]) .dial-label.spokes
 
-  updateLines() {
-    const knobWrap = this.shadowRoot.querySelector('.knob-wrap');
+  updateLines(): void {
+    const knobWrap = this.shadowRoot!.querySelector('.knob-wrap');
     if (!knobWrap) return;
 
     const isSpokes = this.isSpokesMode();
@@ -509,21 +541,21 @@ class DialSelector extends HTMLElement {
     if (isSpokes) {
       this.updateSpokesLines(centerX, centerY, knobRadius);
     } else {
-      this.updateStandardLines(knobWrap, centerX, centerY, knobRadius);
+      this.updateStandardLines(knobWrap as HTMLElement, centerX, centerY, knobRadius);
     }
   }
 
-  updateStandardLines(knobWrap, centerX, centerY, knobRadius) {
+  updateStandardLines(knobWrap: HTMLElement, centerX: number, centerY: number, knobRadius: number): void {
     const leftCenterIndex = this.#leftCount % 2 === 1 ? Math.floor(this.#leftCount / 2) : -1;
     const rightCenterIndex = this.#rightCount % 2 === 1 ? Math.floor(this.#rightCount / 2) : -1;
 
     // Calculate geometry data for all labels
-    const labelData = this.#labels.map((label, index) => {
-      const optionIndex = parseInt(label.dataset.index, 10);
+    const labelData: LabelData[] = this.#labels.map((label, index) => {
+      const optionIndex = parseInt(label.dataset.index!, 10);
       const option = this.#options[optionIndex];
 
       const geom = linesHelper.calculateLabelGeometry({
-        angle: parseFloat(label.dataset.angle),
+        angle: parseFloat(label.dataset.angle!),
         isLeft: label.dataset.isLeft === 'true',
         optionIndex,
         customLineLength: option?.lineLength ?? null,
@@ -611,10 +643,10 @@ class DialSelector extends HTMLElement {
     });
   }
 
-  updateSpokesLines(centerX, centerY, knobRadius) {
+  updateSpokesLines(centerX: number, centerY: number, knobRadius: number): void {
     this.#labels.forEach((label, index) => {
       const { points } = linesHelper.calculateSpokeEndpoints({
-        angle: parseFloat(label.dataset.angle),
+        angle: parseFloat(label.dataset.angle!),
         centerX,
         centerY,
         knobRadius,
@@ -632,10 +664,10 @@ class DialSelector extends HTMLElement {
   /**
    * Updates the selector indicator position and active states.
    */
-  updateSelector() {
+  updateSelector(): void {
     if (this.#labels.length === 0) return;
 
-    const targetAngle = parseFloat(this.#labels[this.#currentIndex].dataset.angle);
+    const targetAngle = parseFloat(this.#labels[this.#currentIndex].dataset.angle!);
 
     if (!this.#isInitialized) {
       this.#currentAngle = mathHelper.roundToThousandths(targetAngle);

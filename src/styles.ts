@@ -2,7 +2,7 @@
  * Returns the CSS styles for the dial-selector component's shadow DOM.
  * Separated into its own file for maintainability.
  */
-export function getStyles() {
+export function getStyles(): string {
   return `
     <style>
       :host {
@@ -359,7 +359,7 @@ export function getStyles() {
 /**
  * Returns the HTML template for the dial-selector component's shadow DOM.
  */
-export function getTemplate() {
+export function getTemplate(): string {
   return `
     <div class="selector" part="panel">
       <div class="label-column left" id="leftColumn" part="labels label-row">

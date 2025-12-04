@@ -4,16 +4,35 @@
 
 import math from './math';
 import { THRESHOLDS } from '../constants';
+import type { SpokeIntersection } from '../types';
+
+/** Parameters for calculateSpokeIntersection */
+type CalculateSpokeIntersectionParams = {
+  angleRad: number;
+  spokeStartX: number;
+  spokeStartY: number;
+  labelY: number;
+  isLeft: boolean;
+  maxSpokeLength: number;
+};
+
+/** Parameters for calculateHorizontalLineEnd */
+type CalculateHorizontalLineEndParams = {
+  intersectX: number;
+  isLeft: boolean;
+  horizontalLength: number;
+  endOffset: number;
+};
 
 /**
  * Calculates the shortest rotation path between two angles.
  * Returns the angle delta to add to currentAngle to reach targetAngle via shortest path.
- * @param {number} currentAngle - Current angle in degrees
- * @param {number} targetAngle - Target angle in degrees
- * @param {number} fullCircle - Full circle in degrees (default 360)
- * @returns {number} The delta to add to currentAngle
+ * @param currentAngle - Current angle in degrees
+ * @param targetAngle - Target angle in degrees
+ * @param fullCircle - Full circle in degrees (default 360)
+ * @returns The delta to add to currentAngle
  */
-function calculateShortestRotation(currentAngle, targetAngle, fullCircle = 360) {
+function calculateShortestRotation(currentAngle: number, targetAngle: number, fullCircle: number = 360): number {
   const normalizedCurrent = ((currentAngle % fullCircle) + fullCircle) % fullCircle;
   const normalizedTarget = ((targetAngle % fullCircle) + fullCircle) % fullCircle;
 
@@ -32,16 +51,17 @@ function calculateShortestRotation(currentAngle, targetAngle, fullCircle = 360) 
 
 /**
  * Calculates where a spoke line intersects with a horizontal line.
- * @param {Object} params - Parameters for the calculation
- * @param {number} params.angleRad - Spoke angle in radians
- * @param {number} params.spokeStartX - X coordinate of spoke start
- * @param {number} params.spokeStartY - Y coordinate of spoke start
- * @param {number} params.labelY - Y coordinate of the horizontal line
- * @param {boolean} params.isLeft - Whether this is a left-side spoke
- * @param {number} params.maxSpokeLength - Maximum spoke extension length
- * @returns {{ intersectX: number, intersectY: number }} Intersection coordinates
+ * @param params - Parameters for the calculation
+ * @returns Intersection coordinates
  */
-function calculateSpokeIntersection({ angleRad, spokeStartX, spokeStartY, labelY, isLeft, maxSpokeLength }) {
+function calculateSpokeIntersection({
+  angleRad,
+  spokeStartX,
+  spokeStartY,
+  labelY,
+  isLeft,
+  maxSpokeLength,
+}: CalculateSpokeIntersectionParams): SpokeIntersection {
   const intersectY = math.roundToThousandths(labelY);
 
   // Nearly horizontal spoke - limit the extension
@@ -68,14 +88,15 @@ function calculateSpokeIntersection({ angleRad, spokeStartX, spokeStartY, labelY
 
 /**
  * Calculates the end X position of a horizontal line segment.
- * @param {Object} params - Parameters for the calculation
- * @param {number} params.intersectX - X coordinate of the spoke/horizontal intersection
- * @param {boolean} params.isLeft - Whether this is a left-side line
- * @param {number} params.horizontalLength - Length of the horizontal segment
- * @param {number} params.endOffset - Offset from the intersection point
- * @returns {number} The X coordinate of the horizontal line end
+ * @param params - Parameters for the calculation
+ * @returns The X coordinate of the horizontal line end
  */
-function calculateHorizontalLineEnd({ intersectX, isLeft, horizontalLength, endOffset }) {
+function calculateHorizontalLineEnd({
+  intersectX,
+  isLeft,
+  horizontalLength,
+  endOffset,
+}: CalculateHorizontalLineEndParams): number {
   const horizontalEndX = isLeft ? intersectX - horizontalLength : intersectX + horizontalLength;
   return math.roundToThousandths(horizontalEndX);
 }

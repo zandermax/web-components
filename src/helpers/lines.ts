@@ -3,22 +3,68 @@
  */
 
 import math from './math';
+import type { LabelGeometry, ColumnPositions, HorizontalEndPosition, SpokeEndpoints } from '../types';
+
+/** Parameters for calculateLabelGeometry */
+type CalculateLabelGeometryParams = {
+  angle: number;
+  isLeft: boolean;
+  optionIndex: number;
+  customLineLength: number | null;
+  leftCount: number;
+  leftCenterIndex: number;
+  rightCenterIndex: number;
+  centerX: number;
+  centerY: number;
+  knobRadius: number;
+  maxSpokeLength: number;
+};
+
+/** Parameters for calculateHorizontalLength */
+type CalculateHorizontalLengthParams = {
+  useRadial: boolean;
+  customLineLength: number | null;
+  isLeft: boolean;
+  spokeEndX: number;
+  leftColumnX: number;
+  rightColumnX: number;
+};
+
+/** Parameters for calculateHorizontalEnd */
+type CalculateHorizontalEndParams = {
+  isLeft: boolean;
+  spokeEndX: number;
+  horizontalLength: number;
+  horizontalStartY: number;
+};
+
+/** Parameters for buildLinePoints */
+type BuildLinePointsParams = {
+  horizontalLength: number;
+  isCenterOption: boolean;
+  spokeStartX: number;
+  spokeStartY: number;
+  spokeEndX: number;
+  spokeEndY: number;
+  horizontalStartY: number;
+  horizontalEndX: number;
+  horizontalEndY: number;
+};
+
+/** Parameters for calculateSpokeEndpoints */
+type CalculateSpokeEndpointsParams = {
+  angle: number;
+  centerX: number;
+  centerY: number;
+  knobRadius: number;
+  spokeLength: number;
+  labelGap: number;
+};
 
 /**
  * Calculates geometry data for a single label's line.
- * @param {Object} params - Parameters for calculation
- * @param {number} params.angle - Angle in degrees
- * @param {boolean} params.isLeft - Whether this is on the left side
- * @param {number} params.optionIndex - Index of this option
- * @param {number|null} params.customLineLength - Custom line length or null
- * @param {number} params.leftCount - Total count on left side
- * @param {number} params.leftCenterIndex - Center index for left side (-1 if none)
- * @param {number} params.rightCenterIndex - Center index for right side (-1 if none)
- * @param {number} params.centerX - X coordinate of dial center
- * @param {number} params.centerY - Y coordinate of dial center
- * @param {number} params.knobRadius - Radius of the knob
- * @param {number} params.maxSpokeLength - Maximum spoke length
- * @returns {Object} Geometry data for this label
+ * @param params - Parameters for calculation
+ * @returns Geometry data for this label
  */
 function calculateLabelGeometry({
   angle,
@@ -32,7 +78,7 @@ function calculateLabelGeometry({
   centerY,
   knobRadius,
   maxSpokeLength,
-}) {
+}: CalculateLabelGeometryParams): LabelGeometry {
   const angleRad = math.degreesToRadians(angle);
   const useRadial = customLineLength !== null;
 
@@ -42,7 +88,9 @@ function calculateLabelGeometry({
   const spokeStartX = math.roundToThousandths(centerX + Math.cos(angleRad) * knobRadius);
   const spokeStartY = math.roundToThousandths(centerY + Math.sin(angleRad) * knobRadius);
 
-  let spokeEndX, spokeEndY, horizontalStartY;
+  let spokeEndX: number;
+  let spokeEndY: number;
+  let horizontalStartY: number;
 
   if (isCenterOption) {
     spokeEndX = spokeStartX;
@@ -72,11 +120,11 @@ function calculateLabelGeometry({
 
 /**
  * Calculates column X positions for label alignment.
- * @param {Array} labelDataArray - Array of label geometry data
- * @param {number} horizontalLineLength - Default horizontal line length
- * @returns {{ leftColumnX: number, rightColumnX: number }}
+ * @param labelDataArray - Array of label geometry data
+ * @param horizontalLineLength - Default horizontal line length
+ * @returns Object with leftColumnX and rightColumnX
  */
-function calculateColumnPositions(labelDataArray, horizontalLineLength) {
+function calculateColumnPositions(labelDataArray: LabelGeometry[], horizontalLineLength: number): ColumnPositions {
   return labelDataArray
     .filter((data) => !data.useRadial)
     .reduce(
@@ -94,32 +142,34 @@ function calculateColumnPositions(labelDataArray, horizontalLineLength) {
 
 /**
  * Calculates the horizontal line length for a label.
- * @param {Object} params - Parameters
- * @param {boolean} params.useRadial - Whether to use radial (custom) alignment
- * @param {number|null} params.customLineLength - Custom line length
- * @param {boolean} params.isLeft - Whether on left side
- * @param {number} params.spokeEndX - X position of spoke end
- * @param {number} params.leftColumnX - X position of left column
- * @param {number} params.rightColumnX - X position of right column
- * @returns {number} Horizontal line length
+ * @param params - Parameters for calculation
+ * @returns Horizontal line length
  */
-function calculateHorizontalLength({ useRadial, customLineLength, isLeft, spokeEndX, leftColumnX, rightColumnX }) {
+function calculateHorizontalLength({
+  useRadial,
+  customLineLength,
+  isLeft,
+  spokeEndX,
+  leftColumnX,
+  rightColumnX,
+}: CalculateHorizontalLengthParams): number {
   if (useRadial) {
-    return customLineLength;
+    return customLineLength!;
   }
   return isLeft ? Math.abs(spokeEndX - leftColumnX) : Math.abs(rightColumnX - spokeEndX);
 }
 
 /**
  * Calculates the end position of a horizontal line segment.
- * @param {Object} params - Parameters
- * @param {boolean} params.isLeft - Whether on left side
- * @param {number} params.spokeEndX - X position of spoke end
- * @param {number} params.horizontalLength - Length of horizontal segment
- * @param {number} params.horizontalStartY - Y position of horizontal line
- * @returns {{ horizontalEndX: number, horizontalEndY: number }}
+ * @param params - Parameters for calculation
+ * @returns Object with horizontalEndX and horizontalEndY
  */
-function calculateHorizontalEnd({ isLeft, spokeEndX, horizontalLength, horizontalStartY }) {
+function calculateHorizontalEnd({
+  isLeft,
+  spokeEndX,
+  horizontalLength,
+  horizontalStartY,
+}: CalculateHorizontalEndParams): HorizontalEndPosition {
   const horizontalEndX = isLeft
     ? math.roundToThousandths(spokeEndX - horizontalLength)
     : math.roundToThousandths(spokeEndX + horizontalLength);
@@ -129,17 +179,8 @@ function calculateHorizontalEnd({ isLeft, spokeEndX, horizontalLength, horizonta
 
 /**
  * Builds the SVG polyline points string for a line.
- * @param {Object} params - Parameters
- * @param {number} params.horizontalLength - Length of horizontal segment
- * @param {boolean} params.isCenterOption - Whether this is a center option
- * @param {number} params.spokeStartX - X of spoke start
- * @param {number} params.spokeStartY - Y of spoke start
- * @param {number} params.spokeEndX - X of spoke end
- * @param {number} params.spokeEndY - Y of spoke end
- * @param {number} params.horizontalStartY - Y of horizontal start
- * @param {number} params.horizontalEndX - X of horizontal end
- * @param {number} params.horizontalEndY - Y of horizontal end
- * @returns {string} SVG polyline points string
+ * @param params - Parameters for building
+ * @returns SVG polyline points string
  */
 function buildLinePoints({
   horizontalLength,
@@ -151,7 +192,7 @@ function buildLinePoints({
   horizontalStartY,
   horizontalEndX,
   horizontalEndY,
-}) {
+}: BuildLinePointsParams): string {
   if (horizontalLength === 0 && isCenterOption) {
     return '';
   }
@@ -166,16 +207,17 @@ function buildLinePoints({
 
 /**
  * Calculates spoke line endpoints for spokes mode.
- * @param {Object} params - Parameters
- * @param {number} params.angle - Angle in degrees
- * @param {number} params.centerX - X of dial center
- * @param {number} params.centerY - Y of dial center
- * @param {number} params.knobRadius - Knob radius
- * @param {number} params.spokeLength - Length of spoke
- * @param {number} params.labelGap - Gap before label
- * @returns {{ spokeStartX: number, spokeStartY: number, spokeEndX: number, spokeEndY: number, points: string }}
+ * @param params - Parameters for calculation
+ * @returns Spoke endpoints including points string
  */
-function calculateSpokeEndpoints({ angle, centerX, centerY, knobRadius, spokeLength, labelGap }) {
+function calculateSpokeEndpoints({
+  angle,
+  centerX,
+  centerY,
+  knobRadius,
+  spokeLength,
+  labelGap,
+}: CalculateSpokeEndpointsParams): SpokeEndpoints {
   const angleRad = math.degreesToRadians(angle);
 
   const spokeStartX = math.roundToThousandths(centerX + Math.cos(angleRad) * knobRadius);
