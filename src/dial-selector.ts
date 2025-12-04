@@ -51,6 +51,10 @@ type OptionPlacementResult = {
  * and various configuration options via HTML attributes.
  */
 class DialSelector extends HTMLElement {
+  // Form-associated custom element support
+  static formAssociated = true;
+  #internals: ElementInternals | null = null;
+
   // Private fields
   #currentIndex: number = 0;
   #previousIndex: number = -1;
@@ -67,6 +71,17 @@ class DialSelector extends HTMLElement {
   #options: DialOption[] = [];
   #hasConnected: boolean = false;
   #resizeHandler: (() => void) | null = null;
+  #keydownHandler: ((event: KeyboardEvent) => void) | null = null;
+  #advanceButtonHandler: (() => void) | null = null;
+  // Cached DOM element references for performance
+  #cachedKnobWrap: HTMLElement | null = null;
+  #cachedSelector: HTMLElement | null = null;
+  #cachedLeftColumn: HTMLElement | null = null;
+  #cachedRightColumn: HTMLElement | null = null;
+  #cachedLineContainer: SVGElement | null = null;
+  #cachedAdvanceButton: HTMLElement | null = null;
+  #cachedLiveRegion: HTMLElement | null = null;
+  #cachedComputedStyle: CSSStyleDeclaration | null = null;
   // Dynamic dimensions (read from CSS computed styles)
   #knobWrapSize: number = KNOB.WRAP_SIZE;
   #horizontalLineLength: number = LINE.HORIZONTAL_LENGTH;
@@ -78,9 +93,102 @@ class DialSelector extends HTMLElement {
     super();
     // Create shadow DOM in constructor
     this.attachShadow({ mode: 'open' });
+
+    // Initialize ElementInternals for form integration
+    if ('attachInternals' in this) {
+      this.#internals = this.attachInternals();
+    }
   }
 
   static observedAttributes = ATTRIBUTES;
+
+  // Form-associated element getters
+  get form(): HTMLFormElement | null {
+    return this.#internals?.form ?? null;
+  }
+
+  get name(): string | null {
+    return this.getAttribute('name');
+  }
+
+  get type(): string {
+    return 'dial-selector';
+  }
+
+  get validity(): ValidityState | undefined {
+    return this.#internals?.validity;
+  }
+
+  get validationMessage(): string {
+    return this.#internals?.validationMessage ?? '';
+  }
+
+  get willValidate(): boolean {
+    return this.#internals?.willValidate ?? false;
+  }
+
+  checkValidity(): boolean {
+    return this.#internals?.checkValidity() ?? true;
+  }
+
+  reportValidity(): boolean {
+    return this.#internals?.reportValidity() ?? true;
+  }
+
+  /**
+   * Called when the form is reset.
+   */
+  formResetCallback(): void {
+    // Reset to initial value or first option
+    const initialValue = this.getAttribute('value');
+    if (initialValue) {
+      const index = domHelper.findOptionIndexByValue(this.#options, initialValue);
+      if (index !== -1) {
+        this.#currentIndex = index;
+        this.updateSelector();
+        this.#updateFormValue();
+        return;
+      }
+    }
+    // Default to first option
+    this.#currentIndex = 0;
+    this.updateSelector();
+    this.#updateFormValue();
+  }
+
+  /**
+   * Called when the form is disabled.
+   */
+  formDisabledCallback(disabled: boolean): void {
+    if (disabled) {
+      this.setAttribute('disabled', '');
+    } else {
+      this.removeAttribute('disabled');
+    }
+  }
+
+  /**
+   * Called when form state is restored (e.g., after navigation).
+   */
+  formStateRestoreCallback(state: string | FormData | File | null, mode: 'restore' | 'autocomplete'): void {
+    if (typeof state === 'string' && state) {
+      const index = domHelper.findOptionIndexByValue(this.#options, state);
+      if (index !== -1) {
+        this.#currentIndex = index;
+        this.updateSelector();
+      }
+    }
+  }
+
+  /**
+   * Updates the form value via ElementInternals.
+   */
+  #updateFormValue(): void {
+    if (this.#internals && this.#options[this.#currentIndex]) {
+      const value = this.#options[this.#currentIndex].value;
+      this.#internals.setFormValue(value, value);
+    }
+  }
 
   initializeOptions(): void {
     const childOptions = Array.from(this.querySelectorAll('dial-option'));
@@ -126,6 +234,7 @@ class DialSelector extends HTMLElement {
       this.setupGeometry();
       this.setupResizeObserver();
       this.setupChildObserver();
+      this.setupKeyboardNavigation();
 
       // Disable transitions during initial setup
       this.classList.add('no-transitions');
@@ -133,6 +242,8 @@ class DialSelector extends HTMLElement {
       // One-time window resize handler
       if (!this.#resizeHandler) {
         this.#resizeHandler = (): void => {
+          // Invalidate cached computed style on resize
+          this.#invalidateComputedStyleCache();
           this.withoutTransitions(() => {
             this.updateDimensions();
             this.updateLines();
@@ -155,6 +266,16 @@ class DialSelector extends HTMLElement {
   }
 
   disconnectedCallback(): void {
+    // Clean up event listeners on labels and hit areas to prevent memory leaks
+    domHelper.cleanupEventListeners(this.#labels, this.#hitAreas);
+
+    // Clean up advance button handler
+    if (this.#advanceButtonHandler) {
+      const advanceButton = this.shadowRoot?.querySelector('#advanceButton');
+      advanceButton?.removeEventListener('click', this.#advanceButtonHandler);
+      this.#advanceButtonHandler = null;
+    }
+
     if (this.#resizeObserver) {
       this.#resizeObserver.disconnect();
       this.#resizeObserver = null;
@@ -166,6 +287,10 @@ class DialSelector extends HTMLElement {
     if (this.#resizeHandler) {
       window.removeEventListener('resize', this.#resizeHandler);
       this.#resizeHandler = null;
+    }
+    if (this.#keydownHandler) {
+      this.removeEventListener('keydown', this.#keydownHandler);
+      this.#keydownHandler = null;
     }
   }
 
@@ -188,10 +313,173 @@ class DialSelector extends HTMLElement {
   }
 
   /**
+   * Checks if the component is disabled.
+   * @returns True if the disabled attribute is present
+   */
+  get disabled(): boolean {
+    return this.hasAttribute('disabled');
+  }
+
+  /**
+   * Sets the disabled state of the component.
+   * @param value - Whether to disable the component
+   */
+  set disabled(value: boolean) {
+    if (value) {
+      this.setAttribute('disabled', '');
+    } else {
+      this.removeAttribute('disabled');
+    }
+  }
+
+  /**
+   * Gets the current selected value.
+   */
+  get value(): string {
+    const option = this.#options[this.#currentIndex];
+    return option?.value ?? '';
+  }
+
+  /**
+   * Sets the selected value by finding the matching option.
+   */
+  set value(newValue: string) {
+    this.selectValue(newValue);
+  }
+
+  /**
+   * Gets the current selected index.
+   */
+  get currentIndex(): number {
+    return this.#currentIndex;
+  }
+
+  /**
+   * Gets the current selected option's label.
+   */
+  get currentLabel(): string {
+    const option = this.#options[this.#currentIndex];
+    return option?.label ?? '';
+  }
+
+  /**
+   * Gets the current selected option object.
+   */
+  get currentOption(): DialOption | undefined {
+    return this.#options[this.#currentIndex];
+  }
+
+  /**
+   * Gets the total number of options.
+   */
+  get optionCount(): number {
+    return this.#options.length;
+  }
+
+  /**
+   * Gets all option objects.
+   */
+  get options(): readonly DialOption[] {
+    return [...this.#options];
+  }
+
+  /**
+   * Selects an option by its value.
+   * @param value - The value to select
+   * @returns True if the option was found and selected, false otherwise
+   */
+  selectValue(value: string): boolean {
+    if (this.disabled) return false;
+    const index = domHelper.findOptionIndexByValue(this.#options, value);
+    if (index !== -1) {
+      this.selectIndex(index);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Selects the next option in the list (wraps around).
+   */
+  next(): void {
+    if (this.disabled || this.#options.length === 0) return;
+    const nextIndex = (this.#currentIndex + 1) % this.#options.length;
+    this.selectIndex(nextIndex);
+  }
+
+  /**
+   * Selects the previous option in the list (wraps around).
+   */
+  previous(): void {
+    if (this.disabled || this.#options.length === 0) return;
+    const prevIndex = (this.#currentIndex - 1 + this.#options.length) % this.#options.length;
+    this.selectIndex(prevIndex);
+  }
+
+  /**
+   * Handles keyboard events for navigation.
+   * @param event - The keyboard event
+   */
+  #handleKeydown(event: KeyboardEvent): void {
+    if (this.disabled) return;
+
+    switch (event.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        event.preventDefault();
+        this.next();
+        break;
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        event.preventDefault();
+        this.previous();
+        break;
+      case 'Home':
+        event.preventDefault();
+        this.selectIndex(0);
+        break;
+      case 'End':
+        event.preventDefault();
+        this.selectIndex(this.#options.length - 1);
+        break;
+      case 'Enter':
+      case ' ':
+        // Space or Enter on the focused component confirms current selection
+        // (dispatches change event if needed)
+        event.preventDefault();
+        this.updateSelector();
+        break;
+    }
+  }
+
+  /**
+   * Sets up keyboard event handling and ARIA attributes for the component.
+   */
+  setupKeyboardNavigation(): void {
+    // Make component focusable if not already
+    if (!this.hasAttribute('tabindex')) {
+      this.setAttribute('tabindex', '0');
+    }
+
+    // Set up ARIA attributes for accessibility
+    this.setAttribute('role', 'listbox');
+    if (!this.hasAttribute('aria-label')) {
+      this.setAttribute('aria-label', 'Dial selector');
+    }
+
+    // Create bound handler for cleanup
+    this.#keydownHandler = (event: KeyboardEvent) => this.#handleKeydown(event);
+    this.addEventListener('keydown', this.#keydownHandler);
+  }
+
+  /**
    * Selects an option by index and updates the selector.
    * @param index - The index of the option to select
    */
   selectIndex(index: number): void {
+    // Don't allow selection changes when disabled
+    if (this.disabled) return;
+
     if (index >= 0 && index < this.#options.length) {
       this.#currentIndex = index;
       this.updateSelector();
@@ -203,22 +491,31 @@ class DialSelector extends HTMLElement {
           this.setAttribute('value', currentOption.value);
         }
       }
+      // Update form value for form integration
+      this.#updateFormValue();
     }
   }
 
   handleAttributeChange({ name, oldValue, newValue }: AttributeChangeParams): void {
     const ATTRIBUTE_HANDLERS: Record<string, () => void> = {
+      disabled: () => this.handleDisabledChange(),
       mode: () => this.handleModeChange(),
       'time-selection-delay': () => this.updateSelectionDelay(),
       'one-sided': () => this.handleOneSidedChange(),
       value: () => this.handleValueChange(newValue),
-      onchange: () => {
-        // onchange attribute changes are handled automatically
-        // No action needed here
-      },
     };
 
     ATTRIBUTE_HANDLERS[name]?.();
+  }
+
+  handleDisabledChange(): void {
+    const isDisabled = this.hasAttribute('disabled');
+    // Update internal state - interaction blocking is handled in selectIndex
+    if (isDisabled) {
+      this.setAttribute('aria-disabled', 'true');
+    } else {
+      this.removeAttribute('aria-disabled');
+    }
   }
 
   handleOneSidedChange(): void {
@@ -261,6 +558,8 @@ class DialSelector extends HTMLElement {
         this.setAttribute('value', currentOption.value);
       }
     }
+    // Set initial form value
+    this.#updateFormValue();
   }
 
   rebuildComponent(): void {
@@ -324,6 +623,8 @@ class DialSelector extends HTMLElement {
   setupResizeObserver(): void {
     if (typeof ResizeObserver !== 'undefined') {
       this.#resizeObserver = new ResizeObserver(() => {
+        // Invalidate cached computed style on resize as CSS values may change
+        this.#invalidateComputedStyleCache();
         this.withoutTransitions(() => {
           this.updateDimensions();
           this.updateLines();
@@ -338,14 +639,12 @@ class DialSelector extends HTMLElement {
     if (containerWidth === 0) {
       return false;
     }
-    const knobWrap = this.shadowRoot!.querySelector('.knob-wrap');
-    const selector = this.shadowRoot!.querySelector('.selector');
-    return !!(knobWrap && selector);
+    return !!(this.#cachedKnobWrap && this.#cachedSelector);
   }
 
   calculateScale(): number {
-    const knobWrap = this.shadowRoot!.querySelector('.knob-wrap')!;
-    const actualSize = knobWrap.getBoundingClientRect().width;
+    if (!this.#cachedKnobWrap) return 1;
+    const actualSize = this.#cachedKnobWrap.getBoundingClientRect().width;
 
     const { knobWrapSize, scale } = dimensionsHelper.calculateKnobScale({
       actualSize,
@@ -359,7 +658,7 @@ class DialSelector extends HTMLElement {
 
   updateKnobRadii(): KnobRadii {
     return dimensionsHelper.parseKnobRadii({
-      computedStyle: getComputedStyle(this),
+      computedStyle: this.#getComputedStyleCached(),
       defaults: KNOB,
       roundFn: mathHelper.roundToThousandths,
     });
@@ -367,7 +666,7 @@ class DialSelector extends HTMLElement {
 
   updateScaledDimensions(): void {
     const dims = dimensionsHelper.parseDimensionsFromCSS({
-      computedStyle: getComputedStyle(this),
+      computedStyle: this.#getComputedStyleCached(),
       defaults: { LINE, HIT_AREA },
       roundFn: mathHelper.roundToThousandths,
     });
@@ -396,6 +695,41 @@ class DialSelector extends HTMLElement {
   buildDOM(): void {
     // Use imported styles and template
     this.shadowRoot!.innerHTML = getStyles() + getTemplate();
+    // Cache DOM references after building
+    this.#cacheElements();
+  }
+
+  /**
+   * Caches DOM element references for performance.
+   * Call after building DOM or when elements might have changed.
+   */
+  #cacheElements(): void {
+    if (!this.shadowRoot) return;
+    this.#cachedKnobWrap = this.shadowRoot.querySelector('.knob-wrap');
+    this.#cachedSelector = this.shadowRoot.querySelector('.selector');
+    this.#cachedLeftColumn = this.shadowRoot.querySelector('#leftColumn');
+    this.#cachedRightColumn = this.shadowRoot.querySelector('#rightColumn');
+    this.#cachedLineContainer = this.shadowRoot.querySelector('#lineContainer');
+    this.#cachedAdvanceButton = this.shadowRoot.querySelector('#advanceButton');
+    this.#cachedLiveRegion = this.shadowRoot.querySelector('#liveRegion');
+  }
+
+  /**
+   * Gets the cached computed style, refreshing if needed.
+   * @returns The computed style for this element
+   */
+  #getComputedStyleCached(): CSSStyleDeclaration {
+    if (!this.#cachedComputedStyle) {
+      this.#cachedComputedStyle = getComputedStyle(this);
+    }
+    return this.#cachedComputedStyle;
+  }
+
+  /**
+   * Invalidates the cached computed style (call after style changes).
+   */
+  #invalidateComputedStyleCache(): void {
+    this.#cachedComputedStyle = null;
   }
 
   /**
@@ -428,16 +762,16 @@ class DialSelector extends HTMLElement {
   }
 
   createLabelsAndLines(): void {
-    // Ensure DOM is built
-    if (!this.shadowRoot || !this.shadowRoot.querySelector('#lineContainer')) {
+    // Ensure DOM is built and elements are cached
+    if (!this.shadowRoot || !this.#cachedLineContainer) {
       this.buildDOM();
     }
 
-    const leftColumn = this.shadowRoot!.querySelector('#leftColumn') as HTMLElement | null;
-    const rightColumn = this.shadowRoot!.querySelector('#rightColumn') as HTMLElement | null;
-    const lineContainer = this.shadowRoot!.querySelector('#lineContainer') as SVGElement | null;
-    const knobWrap = this.shadowRoot!.querySelector('.knob-wrap') as HTMLElement | null;
-    const advanceButton = this.shadowRoot!.querySelector('#advanceButton');
+    const leftColumn = this.#cachedLeftColumn;
+    const rightColumn = this.#cachedRightColumn;
+    const lineContainer = this.#cachedLineContainer;
+    const knobWrap = this.#cachedKnobWrap;
+    const advanceButton = this.#cachedAdvanceButton;
     const oneSided = this.getOneSidedConfig();
     const isSpokes = this.isSpokesMode();
 
@@ -493,9 +827,11 @@ class DialSelector extends HTMLElement {
     });
 
     if (advanceButton) {
-      advanceButton.addEventListener('click', () => {
+      // Store handler reference for cleanup
+      this.#advanceButtonHandler = () => {
         this.selectIndex((this.#currentIndex + 1) % this.#options.length);
-      });
+      };
+      advanceButton.addEventListener('click', this.#advanceButtonHandler);
     }
     // Label positioning is now handled automatically by CSS
   }
@@ -526,22 +862,21 @@ class DialSelector extends HTMLElement {
   // See styles.js .dial-label and :host([mode="spokes"]) .dial-label.spokes
 
   updateLines(): void {
-    const knobWrap = this.shadowRoot!.querySelector('.knob-wrap');
-    if (!knobWrap) return;
+    if (!this.#cachedKnobWrap) return;
 
     const isSpokes = this.isSpokesMode();
     const knobCenter = this.#knobWrapSize / 2;
     const centerX = knobCenter;
     const centerY = knobCenter;
     // Get the actual knob radius from CSS variable, with fallback to default
-    const computedStyle = getComputedStyle(this);
+    const computedStyle = this.#getComputedStyleCached();
     const radiusOuter = computedStyle.getPropertyValue('--radius-outer').trim() || '90px';
     const knobRadius = mathHelper.roundToThousandths(parseFloat(radiusOuter));
 
     if (isSpokes) {
       this.updateSpokesLines(centerX, centerY, knobRadius);
     } else {
-      this.updateStandardLines(knobWrap as HTMLElement, centerX, centerY, knobRadius);
+      this.updateStandardLines(this.#cachedKnobWrap, centerX, centerY, knobRadius);
     }
   }
 
@@ -689,8 +1024,17 @@ class DialSelector extends HTMLElement {
       inactiveOpacity: OPACITY.LINE_INACTIVE,
     });
 
+    // Update ARIA active descendant
+    const activeLabel = this.#labels[this.#currentIndex];
+    if (activeLabel) {
+      this.setAttribute('aria-activedescendant', activeLabel.id);
+    }
+
     // Dispatch change event if the selection actually changed
     if (this.#previousIndex !== this.#currentIndex && this.#isInitialized) {
+      // Announce to screen readers
+      this.announceSelection();
+
       eventsHelper.dispatchDialChangeEvent({
         element: this,
         currentOption: this.#options[this.#currentIndex],
@@ -699,6 +1043,16 @@ class DialSelector extends HTMLElement {
         previousIndex: this.#previousIndex,
       });
       this.#previousIndex = this.#currentIndex;
+    }
+  }
+
+  /**
+   * Announces the current selection to screen readers via the live region.
+   */
+  announceSelection(): void {
+    const currentOption = this.#options[this.#currentIndex];
+    if (this.#cachedLiveRegion && currentOption) {
+      this.#cachedLiveRegion.textContent = `Selected: ${currentOption.label}`;
     }
   }
 }
