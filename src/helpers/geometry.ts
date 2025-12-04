@@ -2,8 +2,8 @@
  * Geometry calculation functions for the dial-selector component.
  */
 
-import math from './math.js';
-import { THRESHOLDS } from '../constants.js';
+import math from './math';
+import { THRESHOLDS } from '../constants';
 
 /**
  * Calculates the shortest rotation path between two angles.

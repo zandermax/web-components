@@ -8,17 +8,17 @@ import {
   HIT_AREA,
   OPACITY,
   ANIMATION,
-} from './constants.js';
+} from './constants';
 
-import { getStyles, getTemplate } from './styles.js';
-import mathHelper from './helpers/math.js';
-import geometryHelper from './helpers/geometry.js';
-import configHelper from './helpers/config.js';
-import dimensionsHelper from './helpers/dimensions.js';
-import linesHelper from './helpers/lines.js';
-import labelsHelper from './helpers/labels.js';
-import domHelper from './helpers/dom.js';
-import eventsHelper from './helpers/events.js';
+import { getStyles, getTemplate } from './styles';
+import mathHelper from './helpers/math';
+import geometryHelper from './helpers/geometry';
+import configHelper from './helpers/config';
+import dimensionsHelper from './helpers/dimensions';
+import linesHelper from './helpers/lines';
+import labelsHelper from './helpers/labels';
+import domHelper from './helpers/dom';
+import eventsHelper from './helpers/events';
 
 /**
  * A custom web component that renders a dial selector interface with labels,

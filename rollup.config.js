@@ -1,6 +1,7 @@
 import terser from '@rollup/plugin-terser';
+import typescript from '@rollup/plugin-typescript';
 
-const input = 'src/dial-selector.js';
+const input = 'src/dial-selector.ts';
 const name = 'DialSelector';
 
 const isDev = process.env.ROLLUP_WATCH === 'true';
@@ -14,6 +15,7 @@ const esmConfig = {
     sourcemap: true,
   },
   plugins: [
+    typescript(),
     // Only minify in production
     !isDev && terser(),
   ].filter(Boolean),
@@ -31,7 +33,7 @@ const productionConfigs = isDev
           format: 'cjs',
           sourcemap: true,
         },
-        plugins: [terser()],
+        plugins: [typescript(), terser()],
       },
       // UMD build (for browser script tag)
       {
@@ -42,7 +44,7 @@ const productionConfigs = isDev
           name,
           sourcemap: true,
         },
-        plugins: [terser()],
+        plugins: [typescript(), terser()],
       },
     ];
 

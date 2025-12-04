@@ -2,7 +2,7 @@
  * Line geometry calculation functions for the dial-selector component.
  */
 
-import math from './math.js';
+import math from './math';
 
 /**
  * Calculates geometry data for a single label's line.
