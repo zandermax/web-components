@@ -7,7 +7,7 @@
  * @param {number} value - The number to round
  * @returns {number} The rounded number
  */
-export function roundToThousandths(value) {
+function roundToThousandths(value) {
   return Math.round(value * 1000) / 1000;
 }
 
@@ -16,7 +16,7 @@ export function roundToThousandths(value) {
  * @param {number} degrees - Angle in degrees
  * @returns {number} Angle in radians (rounded to thousandths)
  */
-export function degreesToRadians(degrees) {
+function degreesToRadians(degrees) {
   return roundToThousandths((degrees * Math.PI) / 180);
 }
 
@@ -27,12 +27,15 @@ export function degreesToRadians(degrees) {
  * @param {number} end - End angle in degrees
  * @returns {number[]} Array of angles in degrees
  */
-export function generateArcAngles(count, start, end) {
+function generateArcAngles(count, start, end) {
   if (count === 1) {
     return [roundToThousandths((start + end) / 2)];
   }
-  return Array.from({ length: count }, (_, i) =>
-    roundToThousandths(start + ((end - start) * i) / (count - 1))
-  );
+  return Array.from({ length: count }, (_, i) => roundToThousandths(start + ((end - start) * i) / (count - 1)));
 }
 
+export default {
+  roundToThousandths,
+  degreesToRadians,
+  generateArcAngles,
+};

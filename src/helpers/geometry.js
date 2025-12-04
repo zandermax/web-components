@@ -2,7 +2,7 @@
  * Geometry calculation functions for the dial-selector component.
  */
 
-import { roundToThousandths } from './math.js';
+import math from './math.js';
 import { THRESHOLDS } from '../constants.js';
 
 /**
@@ -13,7 +13,7 @@ import { THRESHOLDS } from '../constants.js';
  * @param {number} fullCircle - Full circle in degrees (default 360)
  * @returns {number} The delta to add to currentAngle
  */
-export function calculateShortestRotation(currentAngle, targetAngle, fullCircle = 360) {
+function calculateShortestRotation(currentAngle, targetAngle, fullCircle = 360) {
   const normalizedCurrent = ((currentAngle % fullCircle) + fullCircle) % fullCircle;
   const normalizedTarget = ((targetAngle % fullCircle) + fullCircle) % fullCircle;
 
@@ -41,21 +41,14 @@ export function calculateShortestRotation(currentAngle, targetAngle, fullCircle 
  * @param {number} params.maxSpokeLength - Maximum spoke extension length
  * @returns {{ intersectX: number, intersectY: number }} Intersection coordinates
  */
-export function calculateSpokeIntersection({
-  angleRad,
-  spokeStartX,
-  spokeStartY,
-  labelY,
-  isLeft,
-  maxSpokeLength,
-}) {
+function calculateSpokeIntersection({ angleRad, spokeStartX, spokeStartY, labelY, isLeft, maxSpokeLength }) {
   let intersectX, intersectY;
 
   if (Math.abs(Math.sin(angleRad)) < THRESHOLDS.NEARLY_HORIZONTAL) {
     // Nearly horizontal spoke - limit the extension
     const maxExtension = isLeft ? -maxSpokeLength : maxSpokeLength;
-    intersectX = roundToThousandths(spokeStartX + maxExtension);
-    intersectY = roundToThousandths(labelY);
+    intersectX = math.roundToThousandths(spokeStartX + maxExtension);
+    intersectY = math.roundToThousandths(labelY);
   } else {
     // Parametric form: x = spokeStartX + t*cos(angle), y = spokeStartY + t*sin(angle)
     // We want y = labelY, so: t = (labelY - spokeStartY) / sin(angle)
@@ -66,11 +59,11 @@ export function calculateSpokeIntersection({
     if (spokeLength > maxSpokeLength) {
       // Cap the spoke at max length
       const limitedT = t > 0 ? maxSpokeLength : -maxSpokeLength;
-      intersectX = roundToThousandths(spokeStartX + limitedT * Math.cos(angleRad));
-      intersectY = roundToThousandths(labelY);
+      intersectX = math.roundToThousandths(spokeStartX + limitedT * Math.cos(angleRad));
+      intersectY = math.roundToThousandths(labelY);
     } else {
-      intersectX = roundToThousandths(spokeStartX + t * Math.cos(angleRad));
-      intersectY = roundToThousandths(labelY);
+      intersectX = math.roundToThousandths(spokeStartX + t * Math.cos(angleRad));
+      intersectY = math.roundToThousandths(labelY);
     }
   }
 
@@ -86,15 +79,13 @@ export function calculateSpokeIntersection({
  * @param {number} params.endOffset - Offset from the intersection point
  * @returns {number} The X coordinate of the horizontal line end
  */
-export function calculateHorizontalLineEnd({
-  intersectX,
-  isLeft,
-  horizontalLength,
-  endOffset,
-}) {
-  const horizontalEndX = isLeft
-    ? intersectX - horizontalLength
-    : intersectX + horizontalLength;
-  return roundToThousandths(horizontalEndX);
+function calculateHorizontalLineEnd({ intersectX, isLeft, horizontalLength, endOffset }) {
+  const horizontalEndX = isLeft ? intersectX - horizontalLength : intersectX + horizontalLength;
+  return math.roundToThousandths(horizontalEndX);
 }
 
+export default {
+  calculateShortestRotation,
+  calculateSpokeIntersection,
+  calculateHorizontalLineEnd,
+};
