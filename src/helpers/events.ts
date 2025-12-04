@@ -15,7 +15,9 @@ type DispatchDialChangeEventParams = {
 
 /**
  * Creates and dispatches a change event for the dial selector.
- * Handles both CustomEvent dispatch and onchange attribute execution.
+ * Uses standard CustomEvent dispatch - listeners should use addEventListener('change', ...).
+ * The onchange property (set via JS) is also supported via standard event dispatch.
+ * Note: The onchange HTML attribute is NOT supported for security reasons (would require eval).
  * @param params - Parameters for event dispatch
  */
 function dispatchDialChangeEvent({
@@ -40,31 +42,13 @@ function dispatchDialChangeEvent({
     detail,
   });
 
-  // Store original onchange to restore later
-  const onchangeAttr = element.getAttribute('onchange');
-  const originalOnchange = (element as HTMLElement & { onchange?: ((event: Event) => void) | null }).onchange;
-
-  // Temporarily remove onchange to prevent browser from auto-executing it
-  if (onchangeAttr) {
-    element.removeAttribute('onchange');
-    (element as HTMLElement & { onchange: ((event: Event) => void) | null }).onchange = null;
-  }
-
-  // Dispatch the event
+  // Dispatch the event - addEventListener listeners will receive it
   element.dispatchEvent(event);
 
-  // Manually execute the handler
-  if (onchangeAttr) {
-    try {
-      const handler = new Function('event', onchangeAttr) as (event: CustomEvent<DialChangeEventDetail>) => void;
-      handler.call(element, event);
-    } catch (e) {
-      console.warn('Error executing onchange handler:', e);
-    }
-    // Restore the attribute
-    element.setAttribute('onchange', onchangeAttr);
-  } else if (typeof originalOnchange === 'function') {
-    originalOnchange.call(element, event);
+  // Call onchange property handler if set via JavaScript (e.g., element.onchange = fn)
+  const onchangeHandler = (element as HTMLElement & { onchange?: ((event: Event) => void) | null }).onchange;
+  if (typeof onchangeHandler === 'function') {
+    onchangeHandler.call(element, event);
   }
 }
 

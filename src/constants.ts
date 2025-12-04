@@ -1,12 +1,12 @@
 /**
  * All attributes that can be set on the component.
  *
+ * `disabled`: Disables the dial selector, preventing user interaction.
+ *
  * `mode`: Sets the layout mode for the dial selector. Values:
  *         - "spokes": Positions labels radially around the dial at the ends of spoke lines,
  *           eliminating horizontal line segments and side columns for a more space-efficient layout.
  *           Labels remain horizontal for readability.
- *
- * `onchange`: JavaScript function code executed when selection changes. Example: "console.log(event.detail.value)"
  *
  * `one-sided`: Show options only on one side. Values: "left", "inline-start", "right", "inline-end"
  *
@@ -14,8 +14,10 @@
  *
  * `value`: The initial selected value. Must match the value attribute of a child dial-option element.
  *
+ * Note: For change events, use addEventListener('change', handler) or set the onchange property via JS.
+ * The onchange HTML attribute is not supported for security reasons.
  */
-export const ATTRIBUTES = ['mode', 'onchange', 'one-sided', 'time-selection-delay', 'value'] as const;
+export const ATTRIBUTES = ['disabled', 'mode', 'one-sided', 'time-selection-delay', 'value'] as const;
 
 export const FULL_CIRCLE_DEGREES = 360 as const;
 

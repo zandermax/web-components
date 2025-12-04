@@ -4,6 +4,82 @@
 
 import type { DialOption } from '../types';
 
+/** Allowed HTML tags for label content (whitelist for security) */
+const ALLOWED_TAGS = new Set([
+  'span', 'strong', 'em', 'b', 'i', 'u', 's', 'sub', 'sup',
+  'img', 'svg', 'path', 'circle', 'rect', 'line', 'polyline', 'polygon',
+  'g', 'use', 'defs', 'symbol', 'text', 'tspan',
+  'br', 'wbr',
+]);
+
+/** Allowed attributes for sanitized elements */
+const ALLOWED_ATTRIBUTES = new Set([
+  'class', 'id', 'style', 'title', 'alt', 'aria-label', 'aria-hidden', 'role',
+  'src', 'width', 'height', 'viewBox', 'fill', 'stroke', 'stroke-width',
+  'd', 'cx', 'cy', 'r', 'x', 'y', 'x1', 'y1', 'x2', 'y2', 'points',
+  'transform', 'href', 'xlink:href', 'xmlns', 'xmlns:xlink',
+]);
+
+/** Dangerous URL protocols to block */
+const DANGEROUS_PROTOCOLS = /^(javascript|data|vbscript):/i;
+
+/**
+ * Sanitizes HTML content to prevent XSS attacks.
+ * Uses a whitelist approach for allowed tags and attributes.
+ * @param html - The HTML string to sanitize
+ * @returns Sanitized HTML string
+ */
+function sanitizeHTML(html: string): string {
+  const template = document.createElement('template');
+  template.innerHTML = html;
+  
+  const sanitizeNode = (node: Node): void => {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const element = node as Element;
+      const tagName = element.tagName.toLowerCase();
+      
+      // Remove disallowed elements entirely
+      if (!ALLOWED_TAGS.has(tagName)) {
+        // Keep text content but remove the element
+        const textContent = element.textContent || '';
+        element.replaceWith(document.createTextNode(textContent));
+        return;
+      }
+      
+      // Remove disallowed attributes
+      const attributesToRemove: string[] = [];
+      for (const attr of element.attributes) {
+        const attrName = attr.name.toLowerCase();
+        
+        // Check if attribute is allowed
+        if (!ALLOWED_ATTRIBUTES.has(attrName)) {
+          attributesToRemove.push(attr.name);
+          continue;
+        }
+        
+        // Block dangerous URLs in src and href attributes
+        if ((attrName === 'src' || attrName === 'href' || attrName === 'xlink:href') && 
+            DANGEROUS_PROTOCOLS.test(attr.value.trim())) {
+          attributesToRemove.push(attr.name);
+        }
+        
+        // Block event handlers (onclick, onerror, etc.)
+        if (attrName.startsWith('on')) {
+          attributesToRemove.push(attr.name);
+        }
+      }
+      
+      attributesToRemove.forEach(attr => element.removeAttribute(attr));
+      
+      // Recursively sanitize children
+      Array.from(element.childNodes).forEach(sanitizeNode);
+    }
+  };
+  
+  Array.from(template.content.childNodes).forEach(sanitizeNode);
+  return template.innerHTML;
+}
+
 /** Parameters for createLabelElement */
 type CreateLabelElementParams = {
   option: DialOption;
@@ -59,8 +135,9 @@ function createLabelElement({ option, index, angle, isLeft, isSpokes, onClick }:
   label.setAttribute('part', 'label');
 
   // Use HTML content if available, otherwise fall back to text
+  // HTML content is sanitized to prevent XSS attacks
   if (option.htmlContent) {
-    label.innerHTML = option.htmlContent;
+    label.innerHTML = sanitizeHTML(option.htmlContent);
   } else {
     label.textContent = option.label;
   }
