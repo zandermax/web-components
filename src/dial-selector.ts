@@ -70,6 +70,7 @@ class DialSelector extends HTMLElement {
   #childObserver: MutationObserver | null = null;
   #options: DialOption[] = [];
   #hasConnected: boolean = false;
+  #initialValue: string | null = null; // Store initial value for form reset
   #resizeHandler: (() => void) | null = null;
   #keydownHandler: ((event: KeyboardEvent) => void) | null = null;
   #advanceButtonHandler: (() => void) | null = null;
@@ -137,23 +138,30 @@ class DialSelector extends HTMLElement {
 
   /**
    * Called when the form is reset.
+   * Resets to the initial value attribute that was set when the component connected.
    */
   formResetCallback(): void {
-    // Reset to initial value or first option
-    const initialValue = this.getAttribute('value');
-    if (initialValue) {
-      const index = domHelper.findOptionIndexByValue(this.#options, initialValue);
+    // Reset to the stored initial value
+    if (this.#initialValue) {
+      const index = domHelper.findOptionIndexByValue(this.#options, this.#initialValue);
       if (index !== -1) {
         this.#currentIndex = index;
+        this.#previousIndex = index; // Prevent change event on reset
         this.updateSelector();
         this.#updateFormValue();
+        // Also reset the value attribute to the initial value
+        this.setAttribute('value', this.#initialValue);
         return;
       }
     }
-    // Default to first option
+    // Default to first option if no initial value was set
     this.#currentIndex = 0;
+    this.#previousIndex = 0;
     this.updateSelector();
     this.#updateFormValue();
+    if (this.#options[0]) {
+      this.setAttribute('value', this.#options[0].value);
+    }
   }
 
   /**
@@ -220,6 +228,9 @@ class DialSelector extends HTMLElement {
     // Avoid re-running init if the element is moved in the DOM
     if (this.#hasConnected) return;
     this.#hasConnected = true;
+
+    // Store the initial value attribute for form reset
+    this.#initialValue = this.getAttribute('value');
 
     // Build DOM if shadow root is empty (no content yet)
     if (!this.shadowRoot || this.shadowRoot.innerHTML === '') {
