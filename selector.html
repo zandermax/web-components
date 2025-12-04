@@ -245,9 +245,21 @@
 			<dial-option value="tape">TAPE</dial-option>
 			<dial-option value="tuner">TUNER</dial-option>
 			<dial-option value="tv">TV</dial-option>
-			<!-- Custom knob image via slot - using SVG sprite -->
+			<!-- Custom knob image via slot - inline SVG (gradients don't work via external <use>) -->
 			<svg slot="knob-content" viewBox="0 0 100 100" style="width: 100%; height: 100%;">
-				<use href="icons.svg#icon-knob"></use>
+				<defs>
+					<radialGradient id="slottedKnobGrad" cx="30%" cy="30%">
+						<stop offset="0%" stop-color="#667" />
+						<stop offset="100%" stop-color="#223" />
+					</radialGradient>
+					<linearGradient id="slottedIndicatorGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+						<stop offset="0%" stop-color="#ff6b6b" />
+						<stop offset="100%" stop-color="#c92a2a" />
+					</linearGradient>
+				</defs>
+				<circle cx="50" cy="50" r="48" fill="url(#slottedKnobGrad)" stroke="#888" stroke-width="2" />
+				<circle cx="50" cy="50" r="38" fill="none" stroke="#444" stroke-width="1" opacity="0.5" />
+				<rect x="46" y="8" width="8" height="25" rx="4" fill="url(#slottedIndicatorGrad)" />
 			</svg>
 		</dial-selector>
 	</div>
@@ -491,12 +503,12 @@
 	<div class="dial-panel">
 		<h1>Mixed line lengths and unset line lengths</h1>
 		<dial-selector onchange="console.log('Selected:', event.detail.value)">
-			<dial-option value="opt-1" line-length="40">40 px</dial-option>
+			<dial-option value="opt-1">40 px</dial-option>
 			<dial-option value="opt-2">Default</dial-option>
 			<dial-option value="opt-3">Default</dial-option>
 			<dial-option value="opt-4">Default</dial-option>
 			<dial-option value="opt-5">Default</dial-option>
-			<dial-option value="opt-6" line-length="160">160 px</dial-option>
+			<dial-option value="opt-6">160 px</dial-option>
 			<dial-option value="opt-7">Default</dial-option>
 			<dial-option value="opt-8">Default</dial-option>
 		</dial-selector>

@@ -51,7 +51,7 @@ dial-selector {
   max-width: var(--component-width);
   width: var(--component-width);
   height: var(--component-height);
-  overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
   margin: 0;
   padding: 0;

@@ -578,7 +578,7 @@ class DialSelector extends HTMLElement {
 					max-width: var(--component-width);
 					width: var(--component-width);
 					height: var(--component-height);
-					overflow: hidden;
+					overflow: visible;
 					box-sizing: border-box;
 					margin: 0;
 					padding: 0;
@@ -598,6 +598,7 @@ class DialSelector extends HTMLElement {
 					height: 100%;
 					margin: 0;
 					padding: 0;
+					overflow: visible;
 				}
 
 				.label-column {
@@ -608,6 +609,7 @@ class DialSelector extends HTMLElement {
 					height: var(--label-column-height, 320px);
 					margin: 0;
 					padding: 0;
+					overflow: visible;
 				}
 
 				.label-column.left {
@@ -625,6 +627,7 @@ class DialSelector extends HTMLElement {
 					display: grid;
 					place-items: center;
 					flex-shrink: 0;
+					overflow: visible;
 				}
 
 				.knob {
@@ -1358,18 +1361,11 @@ class DialSelector extends HTMLElement {
           yTransform = 'translateY(0)';
         }
 
-        // Align text with the spoke-end of the horizontal line (inner connection point)
-        if (isLeft) {
-          // Left side: end of text aligns with spoke end (right side of horizontal line)
-          label.style.left = `${spokeEndX}px`;
-          label.style.transform = `translateX(-100%) ${yTransform}`;
-          label.style.textAlign = 'right';
-        } else {
-          // Right side: start of text aligns with spoke end (left side of horizontal line)
-          label.style.left = `${spokeEndX}px`;
-          label.style.transform = yTransform;
-          label.style.textAlign = 'left';
-        }
+        // Align END of text (right edge) with the outer END of the horizontal line
+        // Text extends outward (away from the knob) from the line's outer edge
+        label.style.left = `${horizontalEndX}px`;
+        label.style.transform = `translateX(-100%) ${yTransform}`;
+        label.style.textAlign = 'right';
         label.style.top = `${breakLineY}px`;
       }
 
