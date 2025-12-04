@@ -61,3 +61,97 @@ function handleAnimationChange(event) {
 //     --label-icon-opacity: 1;
 //     --label-icon-animation: spin 1s linear infinite;
 //   }
+
+// ============================================
+// Basic Usage Demo (Consolidated Features)
+// ============================================
+
+// Toggle disabled state for basic demo
+function toggleBasicDisabled() {
+  const selector = document.getElementById('basicDemo');
+  const checkbox = document.getElementById('disabledCheck');
+  if (selector && checkbox) {
+    selector.disabled = checkbox.checked;
+    updateBasicOutput();
+  }
+}
+
+// Toggle delay for basic demo
+function toggleBasicDelay() {
+  const selector = document.getElementById('basicDemo');
+  const checkbox = document.getElementById('noDelayCheck');
+  if (selector && checkbox) {
+    if (checkbox.checked) {
+      selector.setAttribute('time-selection-delay', '0');
+    } else {
+      selector.removeAttribute('time-selection-delay');
+    }
+  }
+}
+
+// Programmatic control for basic demo
+function basicNext() {
+  const selector = document.getElementById('basicDemo');
+  if (selector) {
+    selector.next();
+    updateBasicOutput();
+  }
+}
+
+function basicPrevious() {
+  const selector = document.getElementById('basicDemo');
+  if (selector) {
+    selector.previous();
+    updateBasicOutput();
+  }
+}
+
+// Form submit handler for basic demo
+function handleBasicFormSubmit(event) {
+  event.preventDefault();
+  const form = event.target;
+  const formData = new FormData(form);
+  const output = document.getElementById('basicOutput');
+
+  const data = {};
+  formData.forEach((value, key) => {
+    data[key] = value;
+  });
+
+  if (output) {
+    output.textContent = 'Form submitted: ' + JSON.stringify(data, null, 2);
+  }
+  console.log('Form data:', data);
+}
+
+// Update basic demo output
+function updateBasicOutput() {
+  const selector = document.getElementById('basicDemo');
+  const output = document.getElementById('basicOutput');
+  if (selector && output) {
+    output.textContent = JSON.stringify(
+      {
+        value: selector.value,
+        currentIndex: selector.currentIndex,
+        currentLabel: selector.currentLabel,
+        disabled: selector.disabled,
+      },
+      null,
+      2
+    );
+  }
+}
+
+// Set up event listener and initialize on DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+  const basicDemo = document.getElementById('basicDemo');
+
+  if (basicDemo) {
+    basicDemo.addEventListener('change', (event) => {
+      updateBasicOutput();
+    });
+
+    // Initialize output
+    updateBasicOutput();
+  }
+});
