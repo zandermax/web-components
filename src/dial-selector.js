@@ -12,10 +12,12 @@ import {
   HIT_AREA,
   OPACITY,
   ANIMATION,
-  THRESHOLDS,
 } from './constants.js';
 
 import { getStyles, getTemplate } from './styles.js';
+import { roundToThousandths, degreesToRadians, generateArcAngles } from './helpers/math.js';
+import { calculateShortestRotation } from './helpers/geometry.js';
+import { parseOneSidedValue } from './helpers/config.js';
 
 /**
  * A custom web component that renders a dial selector interface with labels,
@@ -71,7 +73,12 @@ class DialSelector extends HTMLElement {
       });
     } else {
       // Fallback to defaults if no <dial-option> children
-      this.OPTIONS = DEFAULT_OPTIONS.map((opt) => ({ value: opt, label: opt, htmlContent: null, lineLength: null }));
+      this.OPTIONS = DEFAULT_OPTIONS.map((opt) => ({
+        value: opt,
+        label: opt,
+        htmlContent: null,
+        lineLength: null,
+      }));
     }
   }
 
@@ -161,7 +168,6 @@ class DialSelector extends HTMLElement {
     this.handleAttributeChange({ name, oldValue, newValue });
   }
 
-  // Utility methods
   /**
    * Executes a callback with transitions temporarily disabled.
    * @param {Function} callback - The function to execute without transitions
@@ -177,19 +183,6 @@ class DialSelector extends HTMLElement {
   }
 
   /**
-   * Rounds a number to 3 decimal places (thousandths).
-   * @param {number} value - The number to round
-   * @returns {number} The rounded number
-   */
-  roundToThousandths(value) {
-    return Math.round(value * 1000) / 1000;
-  }
-
-  degreesToRadians(degrees) {
-    return this.roundToThousandths((degrees * Math.PI) / 180);
-  }
-
-  /**
    * Calculates the vertical position of a label based on its angle.
    * @param {number} angleRad - Angle in radians
    * @returns {number} Top position in pixels
@@ -197,7 +190,7 @@ class DialSelector extends HTMLElement {
   calculateLabelTopPosition(angleRad) {
     const columnCenter = this.labelColumnHeight / 2;
     const verticalOffset = Math.sin(angleRad) * this.labelVerticalOffsetScale;
-    return this.roundToThousandths(columnCenter + verticalOffset);
+    return roundToThousandths(columnCenter + verticalOffset);
   }
 
   /**
@@ -342,7 +335,7 @@ class DialSelector extends HTMLElement {
     if (timeSelectionDelay) {
       // Convert milliseconds to seconds, clamp to minimum of 0
       const delayMs = parseFloat(timeSelectionDelay);
-      const delaySeconds = this.roundToThousandths(Math.max(0, delayMs) / 1000);
+      const delaySeconds = roundToThousandths(Math.max(0, delayMs) / 1000);
       this.style.setProperty('--time-selection-delay', `${delaySeconds}s`);
 
       // When delay is 0, disable all animations by setting transitions to none
@@ -367,7 +360,6 @@ class DialSelector extends HTMLElement {
       this.resizeObserver = new ResizeObserver(() => {
         this.withoutTransitions(() => {
           this.updateDimensions();
-          // updateLines() is called after updateDimensions(), which also calls updateLabelPositions()
           this.updateLines();
         });
       });
@@ -391,11 +383,11 @@ class DialSelector extends HTMLElement {
     // Measure the actual rendered size from CSS
     const actualSize = knobWrap.getBoundingClientRect().width;
 
-    this.knobWrapSize = this.roundToThousandths(actualSize);
-    this.knobCenter = this.roundToThousandths(this.knobWrapSize / 2);
+    this.knobWrapSize = roundToThousandths(actualSize);
+    this.knobCenter = roundToThousandths(this.knobWrapSize / 2);
 
     // Calculate scale factor relative to base size
-    return this.roundToThousandths(this.knobWrapSize / KNOB.WRAP_SIZE);
+    return roundToThousandths(this.knobWrapSize / KNOB.WRAP_SIZE);
   }
 
   updateKnobRadii() {
@@ -405,8 +397,8 @@ class DialSelector extends HTMLElement {
     const radiusInnerCSS = computedStyle.getPropertyValue('--radius-inner').trim();
 
     // Parse the CSS values (expecting px values)
-    const scaledRadiusOuter = this.roundToThousandths(parseFloat(radiusOuterCSS) || KNOB.RADIUS_OUTER);
-    const scaledRadiusInner = this.roundToThousandths(parseFloat(radiusInnerCSS) || KNOB.RADIUS_INNER);
+    const scaledRadiusOuter = roundToThousandths(parseFloat(radiusOuterCSS) || KNOB.RADIUS_OUTER);
+    const scaledRadiusInner = roundToThousandths(parseFloat(radiusInnerCSS) || KNOB.RADIUS_INNER);
 
     return { scaledRadiusOuter, scaledRadiusInner };
   }
@@ -416,25 +408,25 @@ class DialSelector extends HTMLElement {
     const computedStyle = getComputedStyle(this);
 
     // Parse CSS values with fallbacks to defaults
-    this.labelColumnHeight = this.roundToThousandths(
+    this.labelColumnHeight = roundToThousandths(
       parseFloat(computedStyle.getPropertyValue('--label-column-height').trim()) || LABEL.COLUMN_HEIGHT
     );
-    this.labelVerticalOffsetScale = this.roundToThousandths(
+    this.labelVerticalOffsetScale = roundToThousandths(
       parseFloat(computedStyle.getPropertyValue('--label-vertical-offset-scale').trim()) || LABEL.VERTICAL_OFFSET_SCALE
     );
-    this.horizontalLineLength = this.roundToThousandths(
+    this.horizontalLineLength = roundToThousandths(
       parseFloat(computedStyle.getPropertyValue('--horizontal-line-length').trim()) || LINE.HORIZONTAL_LENGTH
     );
-    this.maxSpokeLength = this.roundToThousandths(
+    this.maxSpokeLength = roundToThousandths(
       parseFloat(computedStyle.getPropertyValue('--max-spoke-length').trim()) || LINE.MAX_SPOKE_LENGTH
     );
-    this.hitAreaStrokeWidth = this.roundToThousandths(
+    this.hitAreaStrokeWidth = roundToThousandths(
       parseFloat(computedStyle.getPropertyValue('--hit-area-stroke-width').trim()) || HIT_AREA.STROKE_WIDTH
     );
-    this.horizontalLineEndOffset = this.roundToThousandths(
+    this.horizontalLineEndOffset = roundToThousandths(
       parseFloat(computedStyle.getPropertyValue('--horizontal-line-end-offset').trim()) || LINE.HORIZONTAL_END_OFFSET
     );
-    this.indicatorWidth = this.roundToThousandths(
+    this.indicatorWidth = roundToThousandths(
       parseFloat(computedStyle.getPropertyValue('--indicator-width').trim()) || INDICATOR.WIDTH
     );
   }
@@ -463,13 +455,6 @@ class DialSelector extends HTMLElement {
     this.shadowRoot.innerHTML = getStyles() + getTemplate();
   }
 
-  generateArcAngles(count, start, end) {
-    if (count === 1) {
-      return [this.roundToThousandths((start + end) / 2)];
-    }
-    return Array.from({ length: count }, (_, i) => this.roundToThousandths(start + ((end - start) * i) / (count - 1)));
-  }
-
   /**
    * Checks if spokes mode is enabled.
    * @returns {boolean} True if mode="spokes" attribute is set
@@ -483,16 +468,7 @@ class DialSelector extends HTMLElement {
    * @returns {'left' | 'right' | null} The side to show options on, or null for both sides
    */
   getOneSidedConfig() {
-    const value = this.getAttribute('one-sided');
-    if (!value) return null;
-    const normalized = value.toLowerCase().trim();
-    if (normalized === 'left' || normalized === 'inline-start') {
-      return 'left';
-    }
-    if (normalized === 'right' || normalized === 'inline-end') {
-      return 'right';
-    }
-    return null;
+    return parseOneSidedValue(this.getAttribute('one-sided'));
   }
 
   calculateAngles() {
@@ -502,12 +478,12 @@ class DialSelector extends HTMLElement {
       // All options on the left side
       this.leftCount = this.OPTIONS.length;
       this.rightCount = 0;
-      this.spokeAngles = this.generateArcAngles(this.leftCount, ARCS.LEFT_START, ARCS.LEFT_END);
+      this.spokeAngles = generateArcAngles(this.leftCount, ARCS.LEFT_START, ARCS.LEFT_END);
     } else if (oneSided === 'right') {
       // All options on the right side
       this.leftCount = 0;
       this.rightCount = this.OPTIONS.length;
-      this.spokeAngles = this.generateArcAngles(this.rightCount, ARCS.RIGHT_START, ARCS.RIGHT_END);
+      this.spokeAngles = generateArcAngles(this.rightCount, ARCS.RIGHT_START, ARCS.RIGHT_END);
     } else {
       // Default: split between both sides
       this.leftCount = Math.ceil(this.OPTIONS.length / 2);
@@ -515,8 +491,8 @@ class DialSelector extends HTMLElement {
 
       // Generate angles for right and left sides
       this.spokeAngles = [
-        ...this.generateArcAngles(this.rightCount, ARCS.RIGHT_START, ARCS.RIGHT_END),
-        ...this.generateArcAngles(this.leftCount, ARCS.LEFT_START, ARCS.LEFT_END),
+        ...generateArcAngles(this.rightCount, ARCS.RIGHT_START, ARCS.RIGHT_END),
+        ...generateArcAngles(this.leftCount, ARCS.LEFT_START, ARCS.LEFT_END),
       ];
     }
   }
@@ -567,17 +543,13 @@ class DialSelector extends HTMLElement {
         angleIndex = index;
       } else {
         // Default: split between both sides
-        // Left side gets first half (indices 0 to leftCount-1), right side gets second half (indices leftCount to length-1)
         isLeft = index < this.leftCount;
         container = isSpokes ? knobWrap : isLeft ? leftColumn : rightColumn;
-        // Map option index to angle index:
-        // - Left side: options 0..leftCount-1 map to angles rightCount..rightCount+leftCount-1 (left angles in spokeAngles array)
-        // - Right side: options leftCount..length-1 map to angles 0..rightCount-1 (right angles in spokeAngles array)
         angleIndex = isLeft ? this.rightCount + index : index - this.leftCount;
       }
 
       const angle = this.spokeAngles[angleIndex];
-      const angleRad = this.degreesToRadians(angle);
+      const angleRad = degreesToRadians(angle);
 
       // Create label
       const label = document.createElement('label');
@@ -599,14 +571,8 @@ class DialSelector extends HTMLElement {
       label.dataset.value = option.value;
       label.dataset.isLeft = isLeft ? 'true' : 'false';
 
-      if (isSpokes) {
-        // Spokes mode: position will be set in updateSpokesLabelPositions()
-        label.style.position = 'absolute';
-      } else {
-        // Standard mode: position will be set in updateStandardLines()
-        // Initial position - will be overridden
-        label.style.position = 'absolute';
-      }
+      // Position will be set later
+      label.style.position = 'absolute';
 
       label.addEventListener('click', () => this.selectIndex(index));
 
@@ -624,7 +590,6 @@ class DialSelector extends HTMLElement {
       hitArea.setAttribute('pointer-events', 'auto');
       hitArea.style.cursor = 'pointer';
       hitArea.dataset.index = index;
-      // Initialize with empty points - will be set in updateLines()
       hitArea.setAttribute('points', '');
 
       // Make hit area clickable
@@ -638,7 +603,7 @@ class DialSelector extends HTMLElement {
       line.setAttribute('stroke-width', `var(--line-stroke-width, ${LINE.STROKE_WIDTH})`);
       line.setAttribute('opacity', `var(--line-opacity-inactive, ${OPACITY.LINE_INACTIVE})`);
       line.setAttribute('stroke-linejoin', 'miter');
-      line.setAttribute('pointer-events', 'none'); // Let clicks pass through to hit area
+      line.setAttribute('pointer-events', 'none');
       line.dataset.index = index;
 
       // Append hit area first (behind), then line (on top)
@@ -667,9 +632,9 @@ class DialSelector extends HTMLElement {
       // Update label positions based on current dimensions (standard mode)
       this.labels.forEach((label) => {
         const angle = parseFloat(label.dataset.angle);
-        const angleRad = this.degreesToRadians(angle);
+        const angleRad = degreesToRadians(angle);
         const topPosition = this.calculateLabelTopPosition(angleRad);
-        label.style.top = `${this.roundToThousandths(topPosition)}px`;
+        label.style.top = `${roundToThousandths(topPosition)}px`;
       });
     }
   }
@@ -686,76 +651,28 @@ class DialSelector extends HTMLElement {
 
     this.labels.forEach((label) => {
       const angle = parseFloat(label.dataset.angle);
-      const angleRad = this.degreesToRadians(angle);
+      const angleRad = degreesToRadians(angle);
       const isLeft = label.dataset.isLeft === 'true';
 
       // Calculate position at end of spoke (outside knob radius)
-      const labelAnchorX = this.roundToThousandths(centerX + Math.cos(angleRad) * (radiusOuter + spokeLength));
-      const labelAnchorY = this.roundToThousandths(centerY + Math.sin(angleRad) * (radiusOuter + spokeLength));
+      const labelAnchorX = roundToThousandths(centerX + Math.cos(angleRad) * (radiusOuter + spokeLength));
+      const labelAnchorY = roundToThousandths(centerY + Math.sin(angleRad) * (radiusOuter + spokeLength));
 
       // Position label - horizontal text, anchored appropriately based on side
       label.style.top = `${labelAnchorY}px`;
 
       if (isLeft) {
-        // Left side: text aligns right, position to the left of anchor point
         label.style.right = 'auto';
         label.style.left = `${labelAnchorX}px`;
         label.style.transform = 'translate(-100%, -50%)';
         label.style.textAlign = 'right';
       } else {
-        // Right side: text aligns left, position to the right of anchor point
         label.style.left = `${labelAnchorX}px`;
         label.style.right = 'auto';
         label.style.transform = 'translate(0%, -50%)';
         label.style.textAlign = 'left';
       }
     });
-  }
-
-  calculateSpokeIntersection(angleRad, spokeStartX, spokeStartY, labelY, isLeft) {
-    // Calculate where the spoke (extending from knob edge at angle) meets the horizontal line
-    // The spoke extends from spokeStart outward at the given angle
-    // We need to find where it intersects with the horizontal line at labelY
-    // But limit the spoke length so horizontal spokes don't extend too far
-    const maxSpokeLength = this.maxSpokeLength;
-
-    let intersectX, intersectY;
-
-    if (Math.abs(Math.sin(angleRad)) < THRESHOLDS.NEARLY_HORIZONTAL) {
-      // Nearly horizontal spoke - limit the extension
-      const maxExtension = isLeft ? -maxSpokeLength : maxSpokeLength;
-      intersectX = this.roundToThousandths(spokeStartX + maxExtension);
-      intersectY = this.roundToThousandths(labelY);
-    } else {
-      // Parametric form: x = spokeStartX + t*cos(angle), y = spokeStartY + t*sin(angle)
-      // We want y = labelY, so: t = (labelY - spokeStartY) / sin(angle)
-      const t = (labelY - spokeStartY) / Math.sin(angleRad);
-
-      // Limit the spoke length if it would extend too far
-      const spokeLength = Math.abs(t);
-      if (spokeLength > maxSpokeLength) {
-        // Cap the spoke at max length
-        const limitedT = t > 0 ? maxSpokeLength : -maxSpokeLength;
-        intersectX = this.roundToThousandths(spokeStartX + limitedT * Math.cos(angleRad));
-        // Keep intersection on the horizontal line at labelY
-        intersectY = this.roundToThousandths(labelY);
-      } else {
-        intersectX = this.roundToThousandths(spokeStartX + t * Math.cos(angleRad));
-        intersectY = this.roundToThousandths(labelY);
-      }
-    }
-
-    return { intersectX, intersectY };
-  }
-
-  calculateHorizontalLineEnd(labelX, intersectX, isLeft, customLineLength = null) {
-    const horizontalLength = customLineLength !== null ? customLineLength : this.horizontalLineLength;
-    // Horizontal line should extend from label to intersection
-    // But we want it to stop a bit before the intersection for visual clarity
-    const horizontalEndX = isLeft
-      ? Math.min(intersectX - this.horizontalLineEndOffset, labelX + horizontalLength)
-      : Math.max(intersectX + this.horizontalLineEndOffset, labelX - horizontalLength);
-    return this.roundToThousandths(horizontalEndX);
   }
 
   updateLines() {
@@ -768,7 +685,7 @@ class DialSelector extends HTMLElement {
     // Get the actual knob radius from CSS variable, with fallback to default
     const computedStyle = getComputedStyle(this);
     const radiusOuter = computedStyle.getPropertyValue('--radius-outer').trim() || '90px';
-    const knobRadius = this.roundToThousandths(parseFloat(radiusOuter));
+    const knobRadius = roundToThousandths(parseFloat(radiusOuter));
 
     if (isSpokes) {
       this.updateSpokesLines(centerX, centerY, knobRadius);
@@ -778,34 +695,25 @@ class DialSelector extends HTMLElement {
   }
 
   updateStandardLines(knobWrap, centerX, centerY, knobRadius) {
-    // Line geometry:
-    // 1. Spoke line: radiates from knob edge outward at the option's angle (except for center option if odd count)
-    // 2. Horizontal line: extends from spoke end (or knob edge if no spoke), left for left options, right for right options
-    // 3. Label: positioned at horizontal line end
-
     // Determine which options are "center" (no spoke) based on position
-    // If a side has an odd number of options, the middle one is the center option
     const leftCenterIndex = this.leftCount % 2 === 1 ? Math.floor(this.leftCount / 2) : -1;
     const rightCenterIndex = this.rightCount % 2 === 1 ? Math.floor(this.rightCount / 2) : -1;
 
     // Pre-calculate spoke end positions for all labels
     const labelData = this.labels.map((label, index) => {
       const angle = parseFloat(label.dataset.angle);
-      const angleRad = this.degreesToRadians(angle);
+      const angleRad = degreesToRadians(angle);
       const isLeft = label.dataset.isLeft === 'true';
       const optionIndex = parseInt(label.dataset.index, 10);
       const option = this.OPTIONS[optionIndex];
       const customLineLength = option?.lineLength;
-      // Options with line-length attribute use radial alignment, others use column alignment
       const useRadial = customLineLength !== null;
 
-      // Determine if this is the center option for its side (no spoke)
       const indexWithinSide = isLeft ? optionIndex : optionIndex - this.leftCount;
       const isCenterOption = isLeft ? indexWithinSide === leftCenterIndex : indexWithinSide === rightCenterIndex;
 
-      // Spoke starts at knob edge
-      const spokeStartX = this.roundToThousandths(centerX + Math.cos(angleRad) * knobRadius);
-      const spokeStartY = this.roundToThousandths(centerY + Math.sin(angleRad) * knobRadius);
+      const spokeStartX = roundToThousandths(centerX + Math.cos(angleRad) * knobRadius);
+      const spokeStartY = roundToThousandths(centerY + Math.sin(angleRad) * knobRadius);
 
       let spokeEndX, spokeEndY, horizontalStartY;
 
@@ -814,8 +722,8 @@ class DialSelector extends HTMLElement {
         spokeEndY = spokeStartY;
         horizontalStartY = centerY;
       } else {
-        spokeEndX = this.roundToThousandths(centerX + Math.cos(angleRad) * (knobRadius + this.maxSpokeLength));
-        spokeEndY = this.roundToThousandths(centerY + Math.sin(angleRad) * (knobRadius + this.maxSpokeLength));
+        spokeEndX = roundToThousandths(centerX + Math.cos(angleRad) * (knobRadius + this.maxSpokeLength));
+        spokeEndY = roundToThousandths(centerY + Math.sin(angleRad) * (knobRadius + this.maxSpokeLength));
         horizontalStartY = spokeEndY;
       }
 
@@ -837,14 +745,12 @@ class DialSelector extends HTMLElement {
       };
     });
 
-    // Calculate column positions for options using column alignment (those without line-length)
+    // Calculate column positions for column-aligned options
     let leftColumnX = Infinity;
     let rightColumnX = -Infinity;
 
-    // First pass: find the furthest horizontal end positions using default line length
-    // Only consider options that don't have custom line-length (column-aligned options)
     labelData.forEach((data) => {
-      if (data.useRadial) return; // Skip radially-aligned options
+      if (data.useRadial) return;
 
       const defaultEndX = data.isLeft
         ? data.spokeEndX - this.horizontalLineLength
@@ -857,7 +763,7 @@ class DialSelector extends HTMLElement {
       }
     });
 
-    // Second pass: draw lines and position labels
+    // Draw lines and position labels
     labelData.forEach((data) => {
       const {
         label,
@@ -873,20 +779,16 @@ class DialSelector extends HTMLElement {
         horizontalStartY,
       } = data;
 
-      // Determine horizontal line length
       let horizontalLength;
       if (useRadial) {
-        // Use custom line length for radially-aligned options
         horizontalLength = customLineLength;
       } else {
-        // Calculate length needed to reach column position for column-aligned options
         horizontalLength = isLeft ? Math.abs(spokeEndX - leftColumnX) : Math.abs(rightColumnX - spokeEndX);
       }
 
-      // Calculate horizontal end position
       const horizontalEndX = isLeft
-        ? this.roundToThousandths(spokeEndX - horizontalLength)
-        : this.roundToThousandths(spokeEndX + horizontalLength);
+        ? roundToThousandths(spokeEndX - horizontalLength)
+        : roundToThousandths(spokeEndX + horizontalLength);
       const horizontalEndY = horizontalStartY;
 
       // Build the line points
@@ -908,7 +810,6 @@ class DialSelector extends HTMLElement {
 
       const labelGap = this.horizontalLineEndOffset;
 
-      // First, position label normally (inline with the line)
       label.classList.remove('below-line');
       if (isLeft) {
         label.style.left = `${horizontalEndX - labelGap}px`;
@@ -924,18 +825,14 @@ class DialSelector extends HTMLElement {
       label.style.top = `${horizontalEndY}px`;
 
       // Check for overflow and reposition if needed
-      // Use the host element bounds (the dial-selector itself) for overflow detection
       const hostRect = this.getBoundingClientRect();
       const labelRect = label.getBoundingClientRect();
 
-      // Only consider it overflow if the label actually extends beyond the host bounds
       const overflowsRight = labelRect.right > hostRect.right;
       const overflowsLeft = labelRect.left < hostRect.left;
       const labelOverflows = (isLeft && overflowsLeft) || (!isLeft && overflowsRight);
 
       if (labelOverflows && horizontalLength > 0) {
-        // Move label above or below the line based on position
-        // Options in upper half show label above, lower half show below
         const isAboveCenter = horizontalEndY < centerY;
 
         label.classList.add('below-line');
@@ -943,17 +840,13 @@ class DialSelector extends HTMLElement {
         let breakLineY;
         let yTransform;
         if (isAboveCenter) {
-          // Position above the line
           breakLineY = horizontalEndY - 4;
           yTransform = 'translateY(-100%)';
         } else {
-          // Position below the line
           breakLineY = horizontalEndY + 4;
           yTransform = 'translateY(0)';
         }
 
-        // Align END of text (right edge) with the outer END of the horizontal line
-        // Text extends outward (away from the knob) from the line's outer edge
         label.style.left = `${horizontalEndX}px`;
         label.style.transform = `translateX(-100%) ${yTransform}`;
         label.style.textAlign = 'right';
@@ -969,27 +862,22 @@ class DialSelector extends HTMLElement {
   }
 
   updateSpokesLines(centerX, centerY, knobRadius) {
-    // In spokes mode, draw straight 2-point spokes from knob edge to near the label
     const spokeLength = this.maxSpokeLength;
-    const labelGap = this.horizontalLineEndOffset; // Small gap between spoke end and label
+    const labelGap = this.horizontalLineEndOffset;
 
     this.labels.forEach((label, index) => {
       const angle = parseFloat(label.dataset.angle);
-      const angleRad = this.degreesToRadians(angle);
+      const angleRad = degreesToRadians(angle);
 
-      // Spoke start point at knob edge
-      const spokeStartX = this.roundToThousandths(centerX + Math.cos(angleRad) * knobRadius);
-      const spokeStartY = this.roundToThousandths(centerY + Math.sin(angleRad) * knobRadius);
+      const spokeStartX = roundToThousandths(centerX + Math.cos(angleRad) * knobRadius);
+      const spokeStartY = roundToThousandths(centerY + Math.sin(angleRad) * knobRadius);
 
-      // Spoke end point (near label, with small gap)
-      const spokeEndX = this.roundToThousandths(centerX + Math.cos(angleRad) * (knobRadius + spokeLength - labelGap));
-      const spokeEndY = this.roundToThousandths(centerY + Math.sin(angleRad) * (knobRadius + spokeLength - labelGap));
+      const spokeEndX = roundToThousandths(centerX + Math.cos(angleRad) * (knobRadius + spokeLength - labelGap));
+      const spokeEndY = roundToThousandths(centerY + Math.sin(angleRad) * (knobRadius + spokeLength - labelGap));
 
-      // Create 2-point line: spoke start -> spoke end
       const points = `${spokeStartX},${spokeStartY} ${spokeEndX},${spokeEndY}`;
       this.lines[index].setAttribute('points', points);
 
-      // Update hit area with same points
       if (this.hitAreas[index]) {
         this.hitAreas[index].setAttribute('points', points);
       }
@@ -998,7 +886,6 @@ class DialSelector extends HTMLElement {
 
   /**
    * Updates the selector indicator position and active states.
-   * Calculates shortest angular path and updates visual state.
    */
   updateSelector() {
     if (this.labels.length === 0) return;
@@ -1006,28 +893,16 @@ class DialSelector extends HTMLElement {
     const targetAngle = parseFloat(this.labels[this.currentIndex].dataset.angle);
 
     if (!this.isInitialized) {
-      this.currentAngle = this.roundToThousandths(targetAngle);
+      this.currentAngle = roundToThousandths(targetAngle);
       this.isInitialized = true;
       this.previousIndex = this.currentIndex;
     } else {
       // Calculate the shortest angular path to the target
-      let normalizedCurrent = ((this.currentAngle % FULL_CIRCLE_DEGREES) + FULL_CIRCLE_DEGREES) % FULL_CIRCLE_DEGREES;
-      let normalizedTarget = ((targetAngle % FULL_CIRCLE_DEGREES) + FULL_CIRCLE_DEGREES) % FULL_CIRCLE_DEGREES;
-
-      let forwardDist = normalizedTarget - normalizedCurrent;
-      if (forwardDist < 0) forwardDist += FULL_CIRCLE_DEGREES;
-
-      let backwardDist = normalizedCurrent - normalizedTarget;
-      if (backwardDist < 0) backwardDist += FULL_CIRCLE_DEGREES;
-
-      if (backwardDist < forwardDist) {
-        this.currentAngle = this.roundToThousandths(this.currentAngle - backwardDist);
-      } else {
-        this.currentAngle = this.roundToThousandths(this.currentAngle + forwardDist);
-      }
+      const delta = calculateShortestRotation(this.currentAngle, targetAngle, FULL_CIRCLE_DEGREES);
+      this.currentAngle = roundToThousandths(this.currentAngle + delta);
     }
 
-    this.style.setProperty('--indicator-angle', `${this.roundToThousandths(this.currentAngle)}deg`);
+    this.style.setProperty('--indicator-angle', `${roundToThousandths(this.currentAngle)}deg`);
 
     this.labels.forEach((label, index) => {
       const line = this.lines[index];
@@ -1079,7 +954,7 @@ class DialSelector extends HTMLElement {
       delete this.onchange;
     }
 
-    // Dispatch the event (browser won't auto-execute onchange since we removed it)
+    // Dispatch the event
     this.dispatchEvent(event);
 
     // Manually execute the handler
