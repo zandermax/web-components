@@ -1,0 +1,30 @@
+{
+  "name": "@zandermax/web-components",
+  "version": "1.0.0",
+  "description": "Zander's custom web components",
+  "author": "Zander Maxwell <zandermaxwell@hey.com>",
+  "license": "MIT",
+  "main": "dial-selector.js",
+  "module": "dial-selector.js",
+  "type": "module",
+  "files": [
+    "dial-selector.js",
+    "dial-selector.css",
+    "icons.svg"
+  ],
+  "keywords": [
+    "web-components",
+    "custom-elements",
+    "dial-selector",
+    "ui-components"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zandermax/web-components.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zandermax/web-components/issues"
+  },
+  "homepage": "https://github.com/zandermax/web-components#readme"
+}
+
