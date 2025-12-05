@@ -441,13 +441,13 @@ class DialSelector extends HTMLElement {
 
     switch (event.key) {
       case 'ArrowRight':
-      case 'ArrowDown':
+      case 'ArrowUp':
         event.preventDefault();
         this.#enableKeyboardNav();
         this.next();
         break;
       case 'ArrowLeft':
-      case 'ArrowUp':
+      case 'ArrowDown':
         event.preventDefault();
         this.#enableKeyboardNav();
         this.previous();
