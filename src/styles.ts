@@ -62,9 +62,17 @@ export function getStyles(): string {
         outline: none;
       }
 
-      :host(:focus-visible) .knob {
-        outline: 2px solid var(--color-selection);
+      :host(:focus-visible) .knob,
+      :host(.keyboard-nav:focus) .knob {
+        outline: 5px solid -webkit-focus-ring-color;
         outline-offset: 4px;
+      }
+
+      @supports (outline-color: Highlight) {
+        :host(:focus-visible) .knob,
+        :host(.keyboard-nav:focus) .knob {
+          outline: 5px solid Highlight;
+        }
       }
 
       /* Disabled state styles */

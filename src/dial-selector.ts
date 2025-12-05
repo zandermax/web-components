@@ -73,6 +73,7 @@ class DialSelector extends HTMLElement {
   #initialValue: string | null = null; // Store initial value for form reset
   #resizeHandler: (() => void) | null = null;
   #keydownHandler: ((event: KeyboardEvent) => void) | null = null;
+  #mousedownHandler: (() => void) | null = null;
   #advanceButtonHandler: (() => void) | null = null;
   // Cached DOM element references for performance
   #cachedKnobWrap: HTMLElement | null = null;
@@ -303,6 +304,10 @@ class DialSelector extends HTMLElement {
       this.removeEventListener('keydown', this.#keydownHandler);
       this.#keydownHandler = null;
     }
+    if (this.#mousedownHandler) {
+      this.removeEventListener('mousedown', this.#mousedownHandler);
+      this.#mousedownHandler = null;
+    }
   }
 
   attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
@@ -438,19 +443,23 @@ class DialSelector extends HTMLElement {
       case 'ArrowRight':
       case 'ArrowDown':
         event.preventDefault();
+        this.#enableKeyboardNav();
         this.next();
         break;
       case 'ArrowLeft':
       case 'ArrowUp':
         event.preventDefault();
+        this.#enableKeyboardNav();
         this.previous();
         break;
       case 'Home':
         event.preventDefault();
+        this.#enableKeyboardNav();
         this.selectIndex(0);
         break;
       case 'End':
         event.preventDefault();
+        this.#enableKeyboardNav();
         this.selectIndex(this.#options.length - 1);
         break;
       case 'Enter':
@@ -458,9 +467,24 @@ class DialSelector extends HTMLElement {
         // Space or Enter on the focused component confirms current selection
         // (dispatches change event if needed)
         event.preventDefault();
+        this.#enableKeyboardNav();
         this.updateSelector();
         break;
     }
+  }
+
+  /**
+   * Enables keyboard navigation mode (shows focus ring).
+   */
+  #enableKeyboardNav(): void {
+    this.classList.add('keyboard-nav');
+  }
+
+  /**
+   * Disables keyboard navigation mode (hides focus ring on mouse use).
+   */
+  #disableKeyboardNav(): void {
+    this.classList.remove('keyboard-nav');
   }
 
   /**
@@ -481,6 +505,10 @@ class DialSelector extends HTMLElement {
     // Create bound handler for cleanup
     this.#keydownHandler = (event: KeyboardEvent) => this.#handleKeydown(event);
     this.addEventListener('keydown', this.#keydownHandler);
+
+    // Track mouse interaction to disable keyboard nav styling
+    this.#mousedownHandler = () => this.#disableKeyboardNav();
+    this.addEventListener('mousedown', this.#mousedownHandler);
   }
 
   /**
