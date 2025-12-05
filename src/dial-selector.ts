@@ -19,7 +19,7 @@ import linesHelper from './helpers/lines';
 import labelsHelper from './helpers/labels';
 import domHelper from './helpers/dom';
 import eventsHelper from './helpers/events';
-import type { DialOption, OneSidedConfig, LabelData, KnobRadii } from './types';
+import type { DialOption, OneSidedConfig, LabelData, KnobRadii, DialSelectorEventMap } from './types';
 
 /** Parameters for handleAttributeChange */
 type AttributeChangeParams = {
@@ -1068,4 +1068,50 @@ class DialSelector extends HTMLElement {
   }
 }
 
+// Strongly-typed event listener overloads for DialSelector
+// These enable type inference for event.detail when using addEventListener('change', ...)
+declare module './dial-selector' {
+  interface DialSelector {
+    addEventListener<K extends keyof DialSelectorEventMap>(
+      type: K,
+      listener: (this: DialSelector, ev: DialSelectorEventMap[K]) => void,
+      options?: boolean | AddEventListenerOptions
+    ): void;
+    addEventListener(
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+      options?: boolean | AddEventListenerOptions
+    ): void;
+
+    removeEventListener<K extends keyof DialSelectorEventMap>(
+      type: K,
+      listener: (this: DialSelector, ev: DialSelectorEventMap[K]) => void,
+      options?: boolean | EventListenerOptions
+    ): void;
+    removeEventListener(
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+      options?: boolean | EventListenerOptions
+    ): void;
+  }
+}
+
+// Global augmentation for HTMLElementTagNameMap
+// Enables type inference when using document.querySelector('dial-selector')
+declare global {
+  interface HTMLElementTagNameMap {
+    'dial-selector': DialSelector;
+  }
+}
+
 customElements.define('dial-selector', DialSelector);
+
+// Export the class and event types for consumers
+export { DialSelector };
+export type {
+  DialOption,
+  DialChangeEventDetail,
+  DialChangeEvent,
+  DialSelectorEventMap,
+  DialChangeHandler,
+} from './types';

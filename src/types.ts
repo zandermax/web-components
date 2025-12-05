@@ -121,3 +121,14 @@ export type DialChangeEventDetail = {
   previousLabel: string;
   previousIndex: number;
 };
+
+/** Strongly-typed change event for the dial selector */
+export type DialChangeEvent = CustomEvent<DialChangeEventDetail>;
+
+/** Event map for DialSelector component */
+export interface DialSelectorEventMap extends HTMLElementEventMap {
+  change: DialChangeEvent;
+}
+
+/** Event handler type for the onchange property */
+export type DialChangeHandler = ((this: HTMLElement, event: DialChangeEvent) => void) | null;

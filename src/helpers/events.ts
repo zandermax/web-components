@@ -2,7 +2,7 @@
  * Event handling helpers for the dial-selector component.
  */
 
-import type { DialOption, DialChangeEventDetail } from '../types';
+import type { DialOption, DialChangeEventDetail, DialChangeEvent } from '../types';
 
 /** Parameters for dispatchDialChangeEvent */
 type DispatchDialChangeEventParams = {
@@ -12,6 +12,19 @@ type DispatchDialChangeEventParams = {
   currentIndex: number;
   previousIndex: number;
 };
+
+/**
+ * Creates a strongly-typed change event for the dial selector.
+ * @param detail - The event detail containing selection info
+ * @returns A DialChangeEvent
+ */
+function createChangeEvent(detail: DialChangeEventDetail): DialChangeEvent {
+  return new CustomEvent<DialChangeEventDetail>('change', {
+    bubbles: true,
+    cancelable: true,
+    detail,
+  });
+}
 
 /**
  * Creates and dispatches a change event for the dial selector.
@@ -36,17 +49,14 @@ function dispatchDialChangeEvent({
     previousIndex: previousIndex,
   };
 
-  const event = new CustomEvent<DialChangeEventDetail>('change', {
-    bubbles: true,
-    cancelable: true,
-    detail,
-  });
+  const event = createChangeEvent(detail);
 
   // Dispatch the event - addEventListener listeners will receive it
   element.dispatchEvent(event);
 
   // Call onchange property handler if set via JavaScript (e.g., element.onchange = fn)
-  const onchangeHandler = (element as HTMLElement & { onchange?: ((event: Event) => void) | null }).onchange;
+  // The onchange property is inherited from HTMLElement
+  const onchangeHandler = (element as HTMLElement).onchange;
   if (typeof onchangeHandler === 'function') {
     onchangeHandler.call(element, event);
   }
@@ -54,4 +64,5 @@ function dispatchDialChangeEvent({
 
 export default {
   dispatchDialChangeEvent,
+  createChangeEvent,
 };
