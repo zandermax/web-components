@@ -1,8 +1,13 @@
+import { COMPONENT, HIT_AREA, INDICATOR, KNOB, LINE, LAYOUT, OPACITY } from './constants';
+
 /**
  * Returns the CSS styles for the dial-selector component's shadow DOM.
  * Separated into its own file for maintainability.
  */
 export function getStyles(): string {
+  const knobWrapSize = KNOB.WRAP_SIZE;
+  const knobCenter = knobWrapSize / 2;
+
   return `
     <style>
       :host {
@@ -12,34 +17,35 @@ export function getStyles(): string {
         --indicator-color: #f13b3b;
         --shadow: 0;
         --label-radius: 150px;
-        --line-stroke-width: 2;
-        --line-opacity-inactive: 0.4;
-        --line-opacity-active: 0.8;
+        --line-stroke-width: ${LINE.STROKE_WIDTH};
+        --line-opacity-inactive: ${OPACITY.LINE_INACTIVE};
+        --line-opacity-active: ${OPACITY.LINE_ACTIVE};
         --line-transition: opacity 0.3s ease, stroke 0.3s ease;
-        --indicator-length: 60px;
+        --indicator-length: ${INDICATOR.LENGTH}px;
         --center-indicator: 0px;
         --time-selection-delay: 0s;
-        --radius-outer: 90px;
+        --time-selection-animation: 0.25s;
+        --radius-outer: ${KNOB.RADIUS_OUTER}px;
         --width-outer-circle: 4px;
         --color-outer-circle: var(--color-ink);
         --radius-inner: 72px;
-        --width-inner-circle: 2px;
+        --width-inner-circle: ${LINE.STROKE_WIDTH}px;
         --color-inner-circle: var(--color-ink);
         --font-size: clamp(10px, 1.5vw, 14px);
         --font-family: 'IBM Plex Mono', 'Courier New', monospace;
-        --knob-wrap-size: 320px;
-        --knob-center: 160px;
-        --label-column-height: 320px;
-        --label-vertical-offset-scale: 140px;
-        --horizontal-line-length: 100px;
-        --max-spoke-length: 80px;
-        --horizontal-line-end-offset: 10px;
-        --hit-area-stroke-width: 20px;
-        --indicator-width: 10px;
+        --knob-wrap-size: ${knobWrapSize}px;
+        --knob-center: ${knobCenter}px;
+        --label-column-height: ${LAYOUT.LABEL_COLUMN_HEIGHT}px;
+        --label-vertical-offset-scale: ${LAYOUT.LABEL_VERTICAL_OFFSET_SCALE}px;
+        --horizontal-line-length: ${LINE.HORIZONTAL_LENGTH}px;
+        --max-spoke-length: ${LINE.MAX_SPOKE_LENGTH}px;
+        --horizontal-line-end-offset: ${LINE.HORIZONTAL_END_OFFSET}px;
+        --hit-area-stroke-width: ${HIT_AREA.STROKE_WIDTH}px;
+        --indicator-width: ${INDICATOR.WIDTH}px;
         --component-width: 100%;
         --component-height: auto;
-        --component-min-width: 200px;
-        --component-min-height: 200px;
+        --component-min-width: ${COMPONENT.MIN_WIDTH}px;
+        --component-min-height: ${COMPONENT.MIN_HEIGHT}px;
         --indicator-angle: 0deg;
         display: block;
         font-family: var(--font-family);
@@ -169,7 +175,7 @@ export function getStyles(): string {
         transform-origin: center center;
         transition: var(
           --indicator-transition,
-          transform 0.25s ease-in var(--time-selection-delay, 0s)
+          transform var(--time-selection-animation, 0.25s) ease-in var(--time-selection-delay, 0s)
         );
       }
 
@@ -200,18 +206,20 @@ export function getStyles(): string {
 
       .dial-label {
         text-decoration: none;
+        word-wrap: normal;
         color: inherit;
         font-size: var(--font-size);
         font-family: var(--font-family);
         letter-spacing: clamp(0.5px, 0.1vw, 1px);
-        display: inline-flex;
-        align-items: center;
-        gap: 0;
+        display: block;
         cursor: pointer;
         user-select: none;
         padding: clamp(4px, 1vw, 8px) clamp(6px, 1.5vw, 12px);
         position: absolute;
-        white-space: nowrap;
+        white-space: normal;
+        word-break: normal;
+        width: max-content;
+        line-height: 1.25;
         /* CSS trigonometry for vertical positioning in column mode */
         --label-angle-rad: calc(var(--label-angle, 0) * 1deg);
         --column-center: calc(var(--label-column-height, 320px) / 2);
@@ -324,6 +332,7 @@ export function getStyles(): string {
           min-height: 44px;
           display: flex;
           align-items: center;
+          word-break: normal;
         }
       }
 

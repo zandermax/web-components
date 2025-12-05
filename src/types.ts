@@ -21,6 +21,7 @@ export type LabelPosition = {
   transform: string;
   textAlign: string;
   belowLine?: boolean;
+  maxWidth?: string; // Maximum width for wrapping
 };
 
 /** Geometry data for a label's line */
@@ -95,12 +96,6 @@ export type ColumnPositions = {
 export type HorizontalEndPosition = {
   horizontalEndX: number;
   horizontalEndY: number;
-};
-
-/** Spoke intersection result */
-export type SpokeIntersection = {
-  intersectX: number;
-  intersectY: number;
 };
 
 /** Spoke endpoints result */

@@ -205,6 +205,7 @@ class DialSelector extends HTMLElement {
   }
 
   initializeAttributes(): void {
+    this.updateSelectionAnimation();
     this.updateSelectionDelay();
     this.updateDimensions();
   }
@@ -539,6 +540,7 @@ class DialSelector extends HTMLElement {
     const ATTRIBUTE_HANDLERS: Record<string, () => void> = {
       disabled: () => this.handleDisabledChange(),
       mode: () => this.handleModeChange(),
+      'time-selection-animation': () => this.updateSelectionAnimation(),
       'time-selection-delay': () => this.updateSelectionDelay(),
       'one-sided': () => this.handleOneSidedChange(),
       value: () => this.handleValueChange(newValue),
@@ -635,6 +637,21 @@ class DialSelector extends HTMLElement {
       attributeFilter: ['value', 'line-length'],
       characterData: true,
     });
+  }
+
+  updateSelectionAnimation(): void {
+    const attrValue = this.getAttribute('time-selection-animation');
+    if (attrValue !== null) {
+      const ms = parseFloat(attrValue);
+      if (!isNaN(ms) && ms >= 0) {
+        const seconds = mathHelper.roundToThousandths(ms / 1000);
+        this.style.setProperty('--time-selection-animation', `${seconds}s`);
+      } else {
+        this.style.removeProperty('--time-selection-animation');
+      }
+    } else {
+      this.style.removeProperty('--time-selection-animation');
+    }
   }
 
   updateSelectionDelay(): void {
@@ -920,6 +937,14 @@ class DialSelector extends HTMLElement {
   }
 
   updateStandardLines(knobWrap: HTMLElement, centerX: number, centerY: number, knobRadius: number): void {
+    const knobRect = knobWrap.getBoundingClientRect();
+
+    // Use the widest logical container for overflow detection so that labels
+    // on both sides only "overflow" once they actually hit the visible
+    // panel edge, not the narrower dial box itself.
+    const overflowContainer = this.parentElement ?? this;
+    const hostRect = overflowContainer.getBoundingClientRect();
+
     const leftCenterIndex = this.#leftCount % 2 === 1 ? Math.floor(this.#leftCount / 2) : -1;
     const rightCenterIndex = this.#rightCount % 2 === 1 ? Math.floor(this.#rightCount / 2) : -1;
 
@@ -992,7 +1017,7 @@ class DialSelector extends HTMLElement {
         knobWrap.appendChild(label);
       }
 
-      // Position label inline first
+      // 1) Inline placement under/along the line
       const inlinePosition = labelsHelper.calculateInlineLabelPosition({
         isLeft,
         horizontalEndX,
@@ -1001,17 +1026,38 @@ class DialSelector extends HTMLElement {
       });
       labelsHelper.applyLabelPosition(label, inlinePosition);
 
-      // Check for overflow and reposition if needed
-      const hostRect = this.getBoundingClientRect();
+      // 2) Measure overflow relative to the host
       const labelRect = label.getBoundingClientRect();
-      const labelOverflows = labelsHelper.detectLabelOverflow({ isLeft, labelRect, hostRect });
+      const labelOverflows = labelsHelper.detectLabelOverflow({
+        isLeft,
+        labelRect,
+        hostRect,
+      });
 
+      // 3) If the label overflows outward, move it above/below and
+      //    pin it to the host edge, then slide inward until clamped
       if (labelOverflows && horizontalLength > 0) {
-        const overflowPosition = labelsHelper.calculateOverflowLabelPosition({
+        const overflowPosition = labelsHelper.calculateResponsiveOverflowPosition({
+          isLeft,
           horizontalEndX,
           horizontalEndY,
           centerY,
+          hostRect,
+          knobRect,
+          labelRect,
+          gap: this.#horizontalLineEndOffset,
         });
+
+        // Compute a better maxWidth: distance from the label center to
+        // the *opposite* host edge, doubled, but never less than 80px.
+        const centerXLocal = parseFloat(overflowPosition.left);
+        const hostEdgeLocal = isLeft
+          ? hostRect.right - knobRect.left // far edge for wrapping
+          : hostRect.left - knobRect.left;
+        const availableHalfWidth = Math.abs(hostEdgeLocal - centerXLocal);
+        const clampedMax = Math.max(80, availableHalfWidth * 2);
+        overflowPosition.maxWidth = `${clampedMax}px`;
+
         labelsHelper.applyLabelPosition(label, overflowPosition);
       }
     });

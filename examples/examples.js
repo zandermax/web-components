@@ -142,6 +142,34 @@ function updateBasicOutput() {
   }
 }
 
+// ============================================
+// Custom Animation Timing Demo
+// ============================================
+
+// Update animation delay from input
+function updateAnimationDelay() {
+  const selector = document.getElementById('customAnimationDemo');
+  const input = document.getElementById('animationDelayInput');
+  if (selector && input) {
+    const value = parseInt(input.value, 10);
+    if (!isNaN(value) && value >= 0) {
+      selector.setAttribute('time-selection-delay', value.toString());
+    }
+  }
+}
+
+// Update animation duration from input
+function updateAnimationDuration() {
+  const selector = document.getElementById('customAnimationDemo');
+  const input = document.getElementById('animationDurationInput');
+  if (selector && input) {
+    const value = parseInt(input.value, 10);
+    if (!isNaN(value) && value >= 0) {
+      selector.setAttribute('time-selection-animation', value.toString());
+    }
+  }
+}
+
 // Set up event listener and initialize on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
   const basicDemo = document.getElementById('basicDemo');

@@ -7,9 +7,6 @@
 
 import type { LabelPosition } from '../types';
 
-/** Vertical offset for repositioning overflowed labels */
-const OVERFLOW_LABEL_OFFSET = 4;
-
 /** Parameters for calculateInlineLabelPosition */
 type InlineLabelPositionParams = {
   isLeft: boolean;
@@ -25,11 +22,16 @@ type DetectLabelOverflowParams = {
   hostRect: DOMRect;
 };
 
-/** Parameters for calculateOverflowLabelPosition */
-type OverflowLabelPositionParams = {
+/** Parameters for calculateResponsiveOverflowPosition */
+type ResponsiveOverflowParams = {
+  isLeft: boolean;
   horizontalEndX: number;
   horizontalEndY: number;
   centerY: number;
+  hostRect: DOMRect;
+  knobRect: DOMRect;
+  labelRect: DOMRect;
+  gap?: number;
 };
 
 /**
@@ -43,56 +45,79 @@ function calculateInlineLabelPosition({
   horizontalEndY,
   labelGap,
 }: InlineLabelPositionParams): LabelPosition {
-  if (isLeft) {
-    return {
-      left: `${horizontalEndX - labelGap}px`,
-      right: 'auto',
-      top: `${horizontalEndY}px`,
-      transform: 'translateX(-100%) translateY(-50%)',
-      textAlign: 'right',
-    };
-  }
+  const dir = isLeft ? -1 : 1;
+  const left = horizontalEndX + dir * labelGap;
+  const textAlign = isLeft ? 'right' : 'left';
+  const tx = isLeft ? 'translateX(-100%) ' : '';
+
   return {
-    left: `${horizontalEndX + labelGap}px`,
+    left: `${left}px`,
     right: 'auto',
     top: `${horizontalEndY}px`,
-    transform: 'translateY(-50%)',
-    textAlign: 'left',
+    transform: `${tx}translateY(-50%)`,
+    textAlign,
   };
 }
 
 /**
- * Detects if a label overflows its container bounds.
+ * Detects if a label overflows its container bounds on the relevant edge.
  * @param params - Parameters for detection
  * @returns True if label overflows
  */
 function detectLabelOverflow({ isLeft, labelRect, hostRect }: DetectLabelOverflowParams): boolean {
-  const overflowsRight = labelRect.right > hostRect.right;
-  const overflowsLeft = labelRect.left < hostRect.left;
+  const epsilon = 1; // small visual tolerance
+  const overflowsRight = labelRect.right > hostRect.right + epsilon;
+  const overflowsLeft = labelRect.left < hostRect.left - epsilon;
   return (isLeft && overflowsLeft) || (!isLeft && overflowsRight);
 }
 
 /**
- * Calculates the overflow (repositioned) position for a label.
+ * Calculates a responsive overflow position for a label:
+ *  - First pinned to the host edge (left/right).
+ *  - Then slides inward as the host shrinks.
+ *  - Stops moving once the label's center reaches the line end.
  * @param params - Parameters for calculation
- * @returns Position data with left, top, transform, textAlign, belowLine flag
+ * @returns Position data with left, top, transform, textAlign, belowLine, maxWidth
  */
-function calculateOverflowLabelPosition({
+function calculateResponsiveOverflowPosition({
+  isLeft,
   horizontalEndX,
   horizontalEndY,
   centerY,
-}: OverflowLabelPositionParams): LabelPosition {
-  const isAboveCenter = horizontalEndY < centerY;
-  const breakLineY = isAboveCenter ? horizontalEndY - OVERFLOW_LABEL_OFFSET : horizontalEndY + OVERFLOW_LABEL_OFFSET;
-  const yTransform = isAboveCenter ? 'translateY(-100%)' : 'translateY(0)';
+  hostRect,
+  knobRect,
+  labelRect,
+  gap = 4,
+}: ResponsiveOverflowParams): LabelPosition {
+  const isBelow = horizontalEndY >= centerY;
+
+  // Host edge X in *knob-wrap* coordinate space
+  const hostEdgeXLocal = (isLeft ? hostRect.left : hostRect.right) - knobRect.left;
+
+  const labelWidth = labelRect.width;
+  const halfW = labelWidth / 2;
+
+  // +1 = left side, -1 = right side (relative to host edge)
+  const dir = isLeft ? 1 : -1;
+  const clamp = isLeft ? Math.min : Math.max;
+
+  // Start with label flush to host edge, then clamp so the center
+  // never crosses the line endpoint toward the dial.
+  const centerXLocal = clamp(hostEdgeXLocal + dir * halfW, horizontalEndX);
+
+  const top = isBelow ? horizontalEndY + gap : horizontalEndY - gap;
+  const ty = isBelow ? '0%' : '-100%';
 
   return {
-    left: `${horizontalEndX}px`,
+    left: `${centerXLocal}px`,
     right: 'auto',
-    top: `${breakLineY}px`,
-    transform: `translateX(-100%) ${yTransform}`,
-    textAlign: 'right',
+    top: `${top}px`,
+    transform: `translate(-50%, ${ty})`,
+    textAlign: isLeft ? 'right' : 'left',
     belowLine: true,
+    // At most the distance from label center to host edge,
+    // but never smaller than 80px to avoid absurdly narrow columns.
+    maxWidth: `${Math.max(80, Math.abs(centerXLocal - hostEdgeXLocal))}px`,
   };
 }
 
@@ -108,6 +133,12 @@ function applyLabelPosition(label: HTMLElement, position: LabelPosition): void {
   label.style.transform = position.transform;
   label.style.textAlign = position.textAlign;
 
+  if (position.maxWidth) {
+    label.style.maxWidth = position.maxWidth;
+  } else {
+    label.style.removeProperty('max-width');
+  }
+
   if (position.belowLine) {
     label.classList.add('below-line');
   } else {
@@ -115,12 +146,9 @@ function applyLabelPosition(label: HTMLElement, position: LabelPosition): void {
   }
 }
 
-// Note: calculateSpokesLabelPosition has been replaced by CSS using sin()/cos()
-// See styles.ts :host([mode="spokes"]) .dial-label.spokes
-
 export default {
   calculateInlineLabelPosition,
   detectLabelOverflow,
-  calculateOverflowLabelPosition,
+  calculateResponsiveOverflowPosition,
   applyLabelPosition,
 };

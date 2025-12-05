@@ -10,6 +10,8 @@
  *
  * `one-sided`: Show options only on one side. Values: "left", "inline-start", "right", "inline-end"
  *
+ * `time-selection-animation`: The duration of the knob rotation animation in milliseconds. Example: "500"
+ *
  * `time-selection-delay`: The delay before selection animation in milliseconds. Example: "250"
  *
  * `value`: The initial selected value. Must match the value attribute of a child dial-option element.
@@ -17,7 +19,14 @@
  * Note: For change events, use addEventListener('change', handler) or set the onchange property via JS.
  * The onchange HTML attribute is not supported for security reasons.
  */
-export const ATTRIBUTES = ['disabled', 'mode', 'one-sided', 'time-selection-delay', 'value'] as const;
+export const ATTRIBUTES = [
+  'disabled',
+  'mode',
+  'one-sided',
+  'time-selection-animation',
+  'time-selection-delay',
+  'value',
+] as const;
 
 export const FULL_CIRCLE_DEGREES = 360 as const;
 
@@ -46,20 +55,11 @@ export const KNOB = {
   RADIUS_INNER: 72,
 } as const;
 
-export const LABEL = {
-  COLUMN_HEIGHT: 320,
-  VERTICAL_OFFSET_SCALE: 140,
-} as const;
-
 export const LINE = {
   HORIZONTAL_LENGTH: 100,
   MAX_SPOKE_LENGTH: 80,
   STROKE_WIDTH: 2,
   HORIZONTAL_END_OFFSET: 10,
-} as const;
-
-export const INDICATOR = {
-  WIDTH: 10, // Default indicator width
 } as const;
 
 export const HIT_AREA = {
@@ -71,22 +71,21 @@ export const OPACITY = {
   LINE_ACTIVE: 0.8,
 } as const;
 
+export const INDICATOR = {
+  LENGTH: 60,
+  WIDTH: 10,
+} as const;
+
+export const COMPONENT = {
+  MIN_WIDTH: 200,
+  MIN_HEIGHT: 200,
+} as const;
+
+export const LAYOUT = {
+  LABEL_COLUMN_HEIGHT: 320,
+  LABEL_VERTICAL_OFFSET_SCALE: 140,
+} as const;
+
 export const ANIMATION = {
   INITIALIZATION_DELAY: 100,
-} as const;
-
-export const THRESHOLDS = {
-  NEARLY_HORIZONTAL: 0.0001,
-} as const;
-
-export const COLORS = {
-  RAINBOW: [
-    '#ff0000', // Red
-    '#ff7f00', // Orange
-    '#ffff00', // Yellow
-    '#00ff00', // Green
-    '#0000ff', // Blue
-    '#4b0082', // Indigo
-    '#9400d3', // Violet
-  ],
 } as const;

@@ -409,6 +409,53 @@
 	</div>
 
 	<div class="dial-panel">
+		<h1>No Animation</h1>
+		<p style="margin: 0 0 20px; opacity: 0.7; font-size: 14px;">
+			Instant selection with no transition animation.
+		</p>
+		<dial-selector time-selection-animation="0" onchange="console.log('Selected:', event.detail.value)">
+			<dial-option value="aux">AUX</dial-option>
+			<dial-option value="cd">CD</dial-option>
+			<dial-option value="phono-1">PHONO-1</dial-option>
+			<dial-option value="phono-2">PHONO-2</dial-option>
+			<dial-option value="stream">STREAM</dial-option>
+			<dial-option value="tape">TAPE</dial-option>
+			<dial-option value="tuner">TUNER</dial-option>
+			<dial-option value="tv">TV</dial-option>
+		</dial-selector>
+	</div>
+
+	<div class="dial-panel">
+		<h1>Custom Animation Timing</h1>
+		<p style="margin: 0 0 20px; opacity: 0.7; font-size: 14px;">
+			Configure the delay before animation starts and the animation duration.
+		</p>
+		<dial-selector id="customAnimationDemo" time-selection-delay="350" time-selection-animation="500"
+			onchange="console.log('Selected:', event.detail.value)">
+			<dial-option value="aux">AUX</dial-option>
+			<dial-option value="cd">CD</dial-option>
+			<dial-option value="phono-1">PHONO-1</dial-option>
+			<dial-option value="phono-2">PHONO-2</dial-option>
+			<dial-option value="stream">STREAM</dial-option>
+			<dial-option value="tape">TAPE</dial-option>
+			<dial-option value="tuner">TUNER</dial-option>
+			<dial-option value="tv">TV</dial-option>
+		</dial-selector>
+		<div class="controls-row">
+			<label class="input-label">
+				Delay (ms):
+				<input type="number" id="animationDelayInput" value="350" min="0" step="50" onchange="updateAnimationDelay()"
+					oninput="updateAnimationDelay()">
+			</label>
+			<label class="input-label">
+				Duration (ms):
+				<input type="number" id="animationDurationInput" value="500" min="0" step="50" onchange="updateAnimationDuration()"
+					oninput="updateAnimationDuration()">
+			</label>
+		</div>
+	</div>
+
+	<div class="dial-panel">
 		<h1>One-Sided: Left</h1>
 		<dial-selector one-sided="left" onchange="console.log('Selected:', event.detail.value)">
 			<dial-option value="option-1">Option 1</dial-option>

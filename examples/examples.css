@@ -271,3 +271,27 @@ pre {
   cursor: pointer;
   accent-color: var(--ink);
 }
+
+/* Input label styling */
+.input-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.input-label input[type="number"] {
+  width: 80px;
+  padding: 6px 10px;
+  font-size: 14px;
+  font-family: inherit;
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink);
+}
+
+.input-label input[type="number"]:focus {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
