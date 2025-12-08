@@ -233,15 +233,34 @@ export function getStyles(): string {
       /* One-sided layouts: when host has data-one-sided, show both guides
         on the active side's options container. */
       :host([data-one-sided="left"])
-        .dial-layout-overlay .options-container.left .option .option-image.top,
-      :host([data-one-sided="left"])
-        .dial-layout-overlay .options-container.left .option .option-image.bottom,
-      :host([data-one-sided="right"])
-        .dial-layout-overlay .options-container.right .option .option-image.top,
-      :host([data-one-sided="right"])
-        .dial-layout-overlay .options-container.right .option .option-image.bottom {
-        display: block;
+        .dial-layout-overlay .options-container.left .option {
+          .option-image.top,
+          .option-image.bottom {
+            display: block;
+          }
+
+          .option-text {
+            padding-inline-end: 0;
+          }
       }
+
+      :host([data-one-sided="right"])
+        .dial-layout-overlay .options-container.right .option {
+          .option-image.top,
+          .option-image.bottom {
+            display: block;
+          }
+
+          .option-text {
+            padding-inline-start: 0;
+          }
+        }
+
+        /* Spokes mode styles */
+        :host([mode="spokes"])
+          .dial-layout-overlay .options-container .option .option-image {
+          display: none;
+        }
 
       .knob-container {
         border: 2px dotted #457b9d;
