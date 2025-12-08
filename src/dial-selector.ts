@@ -882,6 +882,9 @@ class DialSelector extends HTMLElement {
       this.#hitAreas.push(hitArea);
     });
 
+    // Keep the dial-layout-overlay in sync with the current options and layout.
+    this.#rebuildDialLayoutOverlay();
+
     if (advanceButton) {
       // Store handler reference for cleanup
       this.#advanceButtonHandler = () => {
@@ -890,6 +893,92 @@ class DialSelector extends HTMLElement {
       advanceButton.addEventListener('click', this.#advanceButtonHandler);
     }
     // Label positioning is now handled automatically by CSS
+  }
+
+  /**
+   * Rebuilds the dial-layout-overlay demo panel so that:
+   *  - All options are rendered in the overlay.
+   *  - Options are grouped into left/right columns using the same side logic
+   *    as labels (configHelper.resolveOptionSide).
+   *  - The left column starts with the lowest option at the bottom, while the
+   *    right column starts with the lowest option at the top.
+   *  - `.option-image` elements are preserved for spacing; `.option-text`
+   *    contains the human‑readable label text.
+   */
+  #rebuildDialLayoutOverlay(): void {
+    if (!this.shadowRoot) return;
+
+    const overlay = this.shadowRoot.querySelector('.dial-layout-overlay');
+    if (!overlay) return;
+
+    const leftContainer = overlay.querySelector<HTMLElement>('.options-container.left');
+    const rightContainer = overlay.querySelector<HTMLElement>('.options-container.right');
+    if (!leftContainer || !rightContainer) return;
+
+    // Clear any existing demo content.
+    leftContainer.innerHTML = '';
+    rightContainer.innerHTML = '';
+
+    const oneSided = this.getOneSidedConfig();
+
+    const leftIndices: number[] = [];
+    const rightIndices: number[] = [];
+
+    // Determine which side each option belongs to using the same logic as labels.
+    this.#options.forEach((_, index) => {
+      const { isLeft } = configHelper.resolveOptionSide({
+        index,
+        oneSided,
+        leftCount: this.#leftCount,
+        rightCount: this.#rightCount,
+      });
+
+      if (isLeft) {
+        leftIndices.push(index);
+      } else {
+        rightIndices.push(index);
+      }
+    });
+
+    const createOptionElement = (option: DialOption, isLeft: boolean): HTMLElement => {
+      const optionEl = document.createElement('div');
+      optionEl.className = 'option';
+
+      const textEl = document.createElement('div');
+      textEl.className = 'option-text';
+      textEl.textContent = option.label;
+
+      const imageEl = document.createElement('div');
+      imageEl.className = 'option-image';
+
+      // Left column: text first, then image (matches label alignment).
+      // Right column: image first, then text, as requested.
+      if (isLeft) {
+        optionEl.appendChild(textEl);
+        optionEl.appendChild(imageEl);
+      } else {
+        optionEl.appendChild(imageEl);
+        optionEl.appendChild(textEl);
+      }
+
+      return optionEl;
+    };
+
+    // Right column: top -> bottom uses natural index order for that side.
+    rightIndices.forEach((optionIndex) => {
+      const option = this.#options[optionIndex];
+      rightContainer.appendChild(createOptionElement(option, false));
+    });
+
+    // Left column: "starts at bottom" – the first logical option on the left
+    // should appear at the bottom of the column. To achieve this with flex
+    // column layout, we append in reverse order so the last one ends up at
+    // the bottom.
+    for (let i = leftIndices.length - 1; i >= 0; i -= 1) {
+      const optionIndex = leftIndices[i];
+      const option = this.#options[optionIndex];
+      leftContainer.appendChild(createOptionElement(option, true));
+    }
   }
 
   /**
