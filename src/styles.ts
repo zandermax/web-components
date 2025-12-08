@@ -142,6 +142,9 @@ export function getStyles(): string {
           flex-direction: column;
           justify-content: space-between;
           border: 2px dashed #e63946;
+          /* Make each column a container for inline-size queries */
+          container-type: inline-size;
+          container-name: dial-options;
 
           /* Grow to take space, but be willing to shrink first */
           flex: 1 1 220px;
@@ -149,6 +152,11 @@ export function getStyles(): string {
           /* They can shrink only until their content needs more room */
           min-width: min-content;
           white-space: nowrap;
+
+          &:not(:has(.option)) {
+            width: 0;
+            display: none;
+          }
 
           .option {
             display: grid;
@@ -169,7 +177,16 @@ export function getStyles(): string {
             grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
 
             .option-text {
-              margin-inline-end: 2em;
+              padding-inline-end: 2em;
+            }
+
+            /* Left side: show bottom image by default, hide top */
+            .option-image.top {
+              display: none;
+            }
+
+            .option-image.bottom {
+              display: block;
             }
           }
 
@@ -177,10 +194,53 @@ export function getStyles(): string {
             grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
 
             .option-text {
-              margin-inline-start: 2em;
+              padding-inline-start: 2em;
+            }
+
+            /* Right side: show top image by default, hide bottom */
+            .option-image.top {
+              display: block;
+            }
+
+            .option-image.bottom {
+              display: none;
             }
           }
         }
+      }
+
+      /* When an options column is narrow enough that items need to stack,
+         force a single-column grid and reveal .option-image.bottom. */
+      @container dial-options (max-width: 260px) {
+        /* Match base selector specificity so this wins when stacked */
+        .dial-layout-overlay .options-container.left .option,
+        .dial-layout-overlay .options-container.right .option {
+          grid-template-columns: 1fr;
+        }
+
+        /* When stacked, also show the secondary images:
+           - Right: reveal bottom image (in addition to top).
+           - Left: reveal top image (in addition to bottom). */
+        .dial-layout-overlay .options-container.right .option .option-image.bottom {
+          display: block;
+        }
+
+        .dial-layout-overlay .options-container.left .option .option-image.top {
+          display: block;
+        }
+      }
+
+      /* One-sided layouts: when host has data-one-sided, show both guides
+        on the active side's options container. */
+      :host([data-one-sided="left"])
+        .dial-layout-overlay .options-container.left .option .option-image.top,
+      :host([data-one-sided="left"])
+        .dial-layout-overlay .options-container.left .option .option-image.bottom,
+      :host([data-one-sided="right"])
+        .dial-layout-overlay .options-container.right .option .option-image.top,
+      :host([data-one-sided="right"])
+        .dial-layout-overlay .options-container.right .option .option-image.bottom {
+        display: block;
       }
 
       .knob-container {

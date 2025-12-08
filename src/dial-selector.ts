@@ -948,18 +948,15 @@ class DialSelector extends HTMLElement {
       textEl.className = 'option-text';
       textEl.textContent = option.label;
 
-      const imageEl = document.createElement('div');
-      imageEl.className = 'option-image';
+      const imageElTop = document.createElement('div');
+      imageElTop.className = 'option-image top';
 
-      // Left column: text first, then image (matches label alignment).
-      // Right column: image first, then text, as requested.
-      if (isLeft) {
-        optionEl.appendChild(textEl);
-        optionEl.appendChild(imageEl);
-      } else {
-        optionEl.appendChild(imageEl);
-        optionEl.appendChild(textEl);
-      }
+      const imageElBottom = document.createElement('div');
+      imageElBottom.className = 'option-image bottom';
+
+      optionEl.appendChild(imageElTop);
+      optionEl.appendChild(textEl);
+      optionEl.appendChild(imageElBottom);
 
       return optionEl;
     };
