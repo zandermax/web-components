@@ -10,7 +10,8 @@ import {
   ANIMATION,
 } from './constants';
 
-import { getStyles, getTemplate } from './styles';
+import { getStyles } from './styles';
+import { getTemplate } from './template';
 import mathHelper from './helpers/math';
 import geometryHelper from './helpers/geometry';
 import configHelper from './helpers/config';
@@ -45,6 +46,24 @@ type OptionPlacementResult = {
   angle: number;
 };
 
+/** Cached DOM element references */
+type DOMCache = {
+  knobWrap: HTMLElement | null;
+  selector: HTMLElement | null;
+  leftColumn: HTMLElement | null;
+  rightColumn: HTMLElement | null;
+  lineContainer: SVGElement | null;
+  advanceButton: HTMLElement | null;
+  liveRegion: HTMLElement | null;
+};
+
+/** Computed geometry based on options and configuration */
+type GeometryCache = {
+  leftCount: number;
+  rightCount: number;
+  spokeAngles: number[];
+};
+
 /**
  * A custom web component that renders a dial selector interface with labels,
  * lines, and an interactive knob. Supports responsive sizing, custom styling,
@@ -55,35 +74,39 @@ class DialSelector extends HTMLElement {
   static formAssociated = true;
   #internals: ElementInternals | null = null;
 
-  // Private fields
+  // Core selection state
   #currentIndex: number = 0;
   #previousIndex: number = -1;
   #currentAngle: number = 0;
   #isInitialized: boolean = false;
+
+  // DOM element arrays (created during setup)
   #labels: HTMLLabelElement[] = [];
   #lines: SVGPolylineElement[] = [];
   #hitAreas: SVGPolylineElement[] = [];
-  #spokeAngles: number[] = [];
-  #rightCount: number = 0;
-  #leftCount: number = 0;
+
+  // Options and configuration
+  #options: DialOption[] = [];
+  #geometry: GeometryCache | null = null;
+
+  // Lifecycle flags
+  #hasConnected: boolean = false;
+  #initialValue: string | null = null;
+
+  // Observers (need references for cleanup)
   #resizeObserver: ResizeObserver | null = null;
   #childObserver: MutationObserver | null = null;
-  #options: DialOption[] = [];
-  #hasConnected: boolean = false;
-  #initialValue: string | null = null; // Store initial value for form reset
+
+  // Event handlers (need references for cleanup)
   #resizeHandler: (() => void) | null = null;
   #keydownHandler: ((event: KeyboardEvent) => void) | null = null;
   #mousedownHandler: (() => void) | null = null;
   #advanceButtonHandler: (() => void) | null = null;
-  // Cached DOM element references for performance
-  #cachedKnobWrap: HTMLElement | null = null;
-  #cachedSelector: HTMLElement | null = null;
-  #cachedLeftColumn: HTMLElement | null = null;
-  #cachedRightColumn: HTMLElement | null = null;
-  #cachedLineContainer: SVGElement | null = null;
-  #cachedAdvanceButton: HTMLElement | null = null;
-  #cachedLiveRegion: HTMLElement | null = null;
+
+  // Cached references (populated once after DOM build)
+  #dom: DOMCache | null = null;
   #cachedComputedStyle: CSSStyleDeclaration | null = null;
+
   // Dynamic dimensions (read from CSS computed styles)
   #knobWrapSize: number = KNOB.WRAP_SIZE;
   #horizontalLineLength: number = LINE.HORIZONTAL_LENGTH;
@@ -606,7 +629,7 @@ class DialSelector extends HTMLElement {
   rebuildComponent(): void {
     this.#labels = [];
     this.#lines = [];
-    this.#spokeAngles = [];
+    this.#geometry = null;
     this.#currentIndex = 0;
     this.#previousIndex = -1;
     this.#isInitialized = false;
@@ -695,12 +718,12 @@ class DialSelector extends HTMLElement {
     if (containerWidth === 0) {
       return false;
     }
-    return !!(this.#cachedKnobWrap && this.#cachedSelector);
+    return !!(this.#dom?.knobWrap && this.#dom?.selector);
   }
 
   calculateScale(): number {
-    if (!this.#cachedKnobWrap) return 1;
-    const actualSize = this.#cachedKnobWrap.getBoundingClientRect().width;
+    if (!this.#dom?.knobWrap) return 1;
+    const actualSize = this.#dom.knobWrap.getBoundingClientRect().width;
 
     const { knobWrapSize, scale } = dimensionsHelper.calculateKnobScale({
       actualSize,
@@ -761,13 +784,15 @@ class DialSelector extends HTMLElement {
    */
   #cacheElements(): void {
     if (!this.shadowRoot) return;
-    this.#cachedKnobWrap = this.shadowRoot.querySelector('.knob-wrap');
-    this.#cachedSelector = this.shadowRoot.querySelector('.selector');
-    this.#cachedLeftColumn = this.shadowRoot.querySelector('#leftColumn');
-    this.#cachedRightColumn = this.shadowRoot.querySelector('#rightColumn');
-    this.#cachedLineContainer = this.shadowRoot.querySelector('#lineContainer');
-    this.#cachedAdvanceButton = this.shadowRoot.querySelector('#advanceButton');
-    this.#cachedLiveRegion = this.shadowRoot.querySelector('#liveRegion');
+    this.#dom = {
+      knobWrap: this.shadowRoot.querySelector('.knob-wrap'),
+      selector: this.shadowRoot.querySelector('.selector'),
+      leftColumn: this.shadowRoot.querySelector('#leftColumn'),
+      rightColumn: this.shadowRoot.querySelector('#rightColumn'),
+      lineContainer: this.shadowRoot.querySelector('#lineContainer'),
+      advanceButton: this.shadowRoot.querySelector('#advanceButton'),
+      liveRegion: this.shadowRoot.querySelector('#liveRegion'),
+    };
   }
 
   /**
@@ -805,29 +830,21 @@ class DialSelector extends HTMLElement {
   }
 
   calculateAngles(): void {
-    const { leftCount, rightCount, spokeAngles } = configHelper.calculateSideCounts({
+    this.#geometry = configHelper.calculateSideCounts({
       optionCount: this.#options.length,
       oneSided: this.getOneSidedConfig(),
       arcs: ARCS,
       generateAngles: mathHelper.generateArcAngles,
     });
-
-    this.#leftCount = leftCount;
-    this.#rightCount = rightCount;
-    this.#spokeAngles = spokeAngles;
   }
 
   createLabelsAndLines(): void {
     // Ensure DOM is built and elements are cached
-    if (!this.shadowRoot || !this.#cachedLineContainer) {
+    if (!this.shadowRoot || !this.#dom?.lineContainer) {
       this.buildDOM();
     }
 
-    const leftColumn = this.#cachedLeftColumn;
-    const rightColumn = this.#cachedRightColumn;
-    const lineContainer = this.#cachedLineContainer;
-    const knobWrap = this.#cachedKnobWrap;
-    const advanceButton = this.#cachedAdvanceButton;
+    const { leftColumn, rightColumn, lineContainer, knobWrap, advanceButton } = this.#dom!;
     const oneSided = this.getOneSidedConfig();
     const isSpokes = this.isSpokesMode();
 
@@ -925,12 +942,13 @@ class DialSelector extends HTMLElement {
     const rightIndices: number[] = [];
 
     // Determine which side each option belongs to using the same logic as labels.
+    const { leftCount, rightCount } = this.#geometry!;
     this.#options.forEach((_, index) => {
       const { isLeft } = configHelper.resolveOptionSide({
         index,
         oneSided,
-        leftCount: this.#leftCount,
-        rightCount: this.#rightCount,
+        leftCount,
+        rightCount,
       });
 
       if (isLeft) {
@@ -989,22 +1007,23 @@ class DialSelector extends HTMLElement {
     leftColumn,
     rightColumn,
   }: ResolveOptionPlacementParams): OptionPlacementResult {
+    const { leftCount, rightCount, spokeAngles } = this.#geometry!;
     const { isLeft, angleIndex } = configHelper.resolveOptionSide({
       index,
       oneSided,
-      leftCount: this.#leftCount,
-      rightCount: this.#rightCount,
+      leftCount,
+      rightCount,
     });
 
     const container = isSpokes ? knobWrap : isLeft ? leftColumn : rightColumn;
-    return { isLeft, container, angle: this.#spokeAngles[angleIndex] };
+    return { isLeft, container, angle: spokeAngles[angleIndex] };
   }
 
   // Label positioning is now handled entirely by CSS using sin() and cos()
   // See styles.js .dial-label and :host([mode="spokes"]) .dial-label.spokes
 
   updateLines(): void {
-    if (!this.#cachedKnobWrap) return;
+    if (!this.#dom?.knobWrap) return;
 
     const isSpokes = this.isSpokesMode();
     const knobCenter = this.#knobWrapSize / 2;
@@ -1018,7 +1037,7 @@ class DialSelector extends HTMLElement {
     if (isSpokes) {
       this.updateSpokesLines(centerX, centerY, knobRadius);
     } else {
-      this.updateStandardLines(this.#cachedKnobWrap, centerX, centerY, knobRadius);
+      this.updateStandardLines(this.#dom.knobWrap, centerX, centerY, knobRadius);
     }
   }
 
@@ -1031,8 +1050,9 @@ class DialSelector extends HTMLElement {
     const overflowContainer = this.parentElement ?? this;
     const hostRect = overflowContainer.getBoundingClientRect();
 
-    const leftCenterIndex = this.#leftCount % 2 === 1 ? Math.floor(this.#leftCount / 2) : -1;
-    const rightCenterIndex = this.#rightCount % 2 === 1 ? Math.floor(this.#rightCount / 2) : -1;
+    const { leftCount, rightCount } = this.#geometry!;
+    const leftCenterIndex = leftCount % 2 === 1 ? Math.floor(leftCount / 2) : -1;
+    const rightCenterIndex = rightCount % 2 === 1 ? Math.floor(rightCount / 2) : -1;
 
     // Calculate geometry data for all labels
     const labelData: LabelData[] = this.#labels.map((label, index) => {
@@ -1044,7 +1064,7 @@ class DialSelector extends HTMLElement {
         isLeft: label.dataset.isLeft === 'true',
         optionIndex,
         customLineLength: option?.lineLength ?? null,
-        leftCount: this.#leftCount,
+        leftCount,
         leftCenterIndex,
         rightCenterIndex,
         centerX,
@@ -1222,8 +1242,8 @@ class DialSelector extends HTMLElement {
    */
   announceSelection(): void {
     const currentOption = this.#options[this.#currentIndex];
-    if (this.#cachedLiveRegion && currentOption) {
-      this.#cachedLiveRegion.textContent = `Selected: ${currentOption.label}`;
+    if (this.#dom?.liveRegion && currentOption) {
+      this.#dom.liveRegion.textContent = `Selected: ${currentOption.label}`;
     }
   }
 }
