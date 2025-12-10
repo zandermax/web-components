@@ -176,11 +176,22 @@ export function getLayoutStyles(): string {
       border: 2px dotted #457b9d;
       margin-inline: 28px;
 
+      /* Make the knob container a square */
+      aspect-ratio: 1;
+      align-self: center;
+
       /* Start at a natural/content width and shrink after options hit their minimums */
       flex: 0 1 180px;
-      min-width: 48px;
       white-space: nowrap;
       text-align: center;
+    }
+
+    .connectors {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
     }
 
     .label-column {
@@ -216,4 +227,3 @@ export function getLayoutStyles(): string {
     }
   `;
 }
-

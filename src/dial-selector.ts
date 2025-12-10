@@ -955,9 +955,33 @@ class DialSelector extends HTMLElement {
       }
     });
 
-    const createOptionElement = (option: DialOption, isLeft: boolean): HTMLElement => {
+    /**
+     * Determines the vertical position class for an option based on its
+     * visual position within its column.
+     * @param visualPosition - The visual position (0 = top) within the column
+     * @param totalInColumn - Total number of options in this column
+     * @returns The position class: 'block-start', 'center', or 'block-end'
+     */
+    const getVerticalPositionClass = (visualPosition: number, totalInColumn: number): string => {
+      if (totalInColumn === 1) {
+        return 'center';
+      }
+
+      const middleIndex = Math.floor(totalInColumn / 2);
+      const hasCenter = totalInColumn % 2 === 1;
+
+      if (hasCenter && visualPosition === middleIndex) {
+        return 'center';
+      } else if (visualPosition < middleIndex) {
+        return 'block-start';
+      } else {
+        return 'block-end';
+      }
+    };
+
+    const createOptionElement = (option: DialOption, positionClass: string): HTMLElement => {
       const optionEl = document.createElement('div');
-      optionEl.className = 'option';
+      optionEl.className = `option ${positionClass}`;
 
       const textEl = document.createElement('div');
       textEl.className = 'option-text';
@@ -977,19 +1001,24 @@ class DialSelector extends HTMLElement {
     };
 
     // Right column: top -> bottom uses natural index order for that side.
-    rightIndices.forEach((optionIndex) => {
+    rightIndices.forEach((optionIndex, visualPosition) => {
       const option = this.#options[optionIndex];
-      rightContainer.appendChild(createOptionElement(option, false));
+      const positionClass = getVerticalPositionClass(visualPosition, rightIndices.length);
+      rightContainer.appendChild(createOptionElement(option, positionClass));
     });
 
     // Left column: "starts at bottom" – the first logical option on the left
     // should appear at the bottom of the column. To achieve this with flex
     // column layout, we append in reverse order so the last one ends up at
     // the bottom.
+    // The visual position is determined by the order after reversal.
     for (let i = leftIndices.length - 1; i >= 0; i -= 1) {
       const optionIndex = leftIndices[i];
       const option = this.#options[optionIndex];
-      leftContainer.appendChild(createOptionElement(option, true));
+      // Visual position: first appended (i = length-1) is at top (visualPosition 0)
+      const visualPosition = leftIndices.length - 1 - i;
+      const positionClass = getVerticalPositionClass(visualPosition, leftIndices.length);
+      leftContainer.appendChild(createOptionElement(option, positionClass));
     }
   }
 
