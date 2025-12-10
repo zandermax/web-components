@@ -62,6 +62,4 @@ function dispatchDialChangeEvent({
   }
 }
 
-export default {
-  dispatchDialChangeEvent,
-};
+export { dispatchDialChangeEvent };

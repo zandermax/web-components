@@ -28,6 +28,13 @@ type ResolveOptionSideParams = {
   rightCount: number;
 };
 
+const SIDE_MAP: Record<string, OneSidedConfig> = {
+  left: 'left',
+  right: 'right',
+  'inline-start': 'left',
+  'inline-end': 'right',
+} as const;
+
 /**
  * Parses the one-sided attribute value.
  * @param value - The attribute value
@@ -35,14 +42,7 @@ type ResolveOptionSideParams = {
  */
 function parseOneSidedValue(value: string | null): OneSidedConfig {
   if (!value) return null;
-  const normalized = value.toLowerCase().trim();
-  if (normalized === 'left' || normalized === 'inline-start') {
-    return 'left';
-  }
-  if (normalized === 'right' || normalized === 'inline-end') {
-    return 'right';
-  }
-  return null;
+  return SIDE_MAP[value.toLowerCase().trim()] ?? null;
 }
 
 /**
@@ -77,7 +77,12 @@ function parseChildOptions(childOptions: Element[], defaultOptions: readonly str
  * @param params - Parameters for calculation
  * @returns Object with leftCount, rightCount, and spokeAngles
  */
-function calculateSideCounts({ optionCount, oneSided, arcs, generateAngles }: CalculateSideCountsParams): SideCountsResult {
+function calculateSideCounts({
+  optionCount,
+  oneSided,
+  arcs,
+  generateAngles,
+}: CalculateSideCountsParams): SideCountsResult {
   if (oneSided === 'left') {
     return {
       leftCount: optionCount,
@@ -121,9 +126,4 @@ function resolveOptionSide({ index, oneSided, leftCount, rightCount }: ResolveOp
   return { isLeft, angleIndex };
 }
 
-export default {
-  parseOneSidedValue,
-  parseChildOptions,
-  calculateSideCounts,
-  resolveOptionSide,
-};
+export { parseOneSidedValue, parseChildOptions, calculateSideCounts, resolveOptionSide };

@@ -34,8 +34,4 @@ function generateArcAngles(count: number, start: number, end: number): number[] 
   return Array.from({ length: count }, (_, i) => roundToThousandths(start + ((end - start) * i) / (count - 1)));
 }
 
-export default {
-  roundToThousandths,
-  degreesToRadians,
-  generateArcAngles,
-};
+export { roundToThousandths, degreesToRadians, generateArcAngles };

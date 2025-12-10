@@ -446,7 +446,7 @@ function findOptionIndexByValue(options: DialOption[], value: string): number {
   return options.findIndex((opt) => opt.value === value);
 }
 
-export default {
+export {
   createLabelElement,
   createLineElement,
   createHitAreaElement,

@@ -146,9 +146,4 @@ function applyLabelPosition(label: HTMLElement, position: LabelPosition): void {
   }
 }
 
-export default {
-  calculateInlineLabelPosition,
-  detectLabelOverflow,
-  calculateResponsiveOverflowPosition,
-  applyLabelPosition,
-};
+export { calculateInlineLabelPosition, detectLabelOverflow, calculateResponsiveOverflowPosition, applyLabelPosition };

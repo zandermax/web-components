@@ -27,6 +27,4 @@ function calculateShortestRotation(currentAngle: number, targetAngle: number, fu
   }
 }
 
-export default {
-  calculateShortestRotation,
-};
+export { calculateShortestRotation };

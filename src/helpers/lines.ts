@@ -2,7 +2,7 @@
  * Line geometry calculation functions for the dial-selector component.
  */
 
-import math from './math';
+import * as math from './math';
 import type { LabelGeometry, ColumnPositions, HorizontalEndPosition, SpokeEndpoints } from '../types';
 
 /** Parameters for calculateLabelGeometry */
@@ -231,7 +231,7 @@ function calculateSpokeEndpoints({
   return { spokeStartX, spokeStartY, spokeEndX, spokeEndY, points };
 }
 
-export default {
+export {
   calculateLabelGeometry,
   calculateColumnPositions,
   calculateHorizontalLength,

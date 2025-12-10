@@ -33,45 +33,9 @@ export function getTemplate(): string {
 
       <div class="dial-layout-overlay" aria-hidden="true">
         <div class="dial-container">
-          <div class="options-container left">
-            <div class="option">
-              <div class="option-text">
-                Content 1
-              </div>
-              <div class="option-image">
-                <img src="https://via.placeholder.com/150" alt="Option 1 line" />
-              </div>
-            </div>
-            <div class="option">
-              <div class="option-text">
-                Content 2
-              </div>
-              <div class="option-image">
-                <img src="https://via.placeholder.com/150" alt="Option 2 line" />
-              </div>
-            </div>
-            <div class="option">
-              <div class="option-text">
-                Content 3
-              </div>
-              <div class="option-image">
-                <img src="https://via.placeholder.com/150" alt="Option 3 line" />
-              </div>
-            </div>
-          </div>
-          <div class="knob-container">
-            Knob
-          </div>
-          <div class="options-container right">
-            <div class="option">
-              <div class="option-image">
-                <img src="https://via.placeholder.com/150" alt="Option 4 line" />
-              </div>
-              <div class="option-text">
-                Content 4
-              </div>
-            </div>
-          </div>
+          <div class="options-container left"></div>
+          <div class="knob-container"></div>
+          <div class="options-container right"></div>
         </div>
       </div>
     </div>

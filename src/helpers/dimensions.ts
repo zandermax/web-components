@@ -136,10 +136,4 @@ function computeSelectionDelay(
   };
 }
 
-export default {
-  parseCSSValue,
-  parseDimensionsFromCSS,
-  parseKnobRadii,
-  calculateKnobScale,
-  computeSelectionDelay,
-};
+export { parseDimensionsFromCSS, parseKnobRadii, calculateKnobScale, computeSelectionDelay };

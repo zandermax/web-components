@@ -12,14 +12,14 @@ import {
 
 import { getStyles } from './styles';
 import { getTemplate } from './template';
-import mathHelper from './helpers/math';
-import geometryHelper from './helpers/geometry';
-import configHelper from './helpers/config';
-import dimensionsHelper from './helpers/dimensions';
-import linesHelper from './helpers/lines';
-import labelsHelper from './helpers/labels';
-import domHelper from './helpers/dom';
-import eventsHelper from './helpers/events';
+import * as mathHelper from './helpers/math';
+import * as geometryHelper from './helpers/geometry';
+import * as configHelper from './helpers/config';
+import * as dimensionsHelper from './helpers/dimensions';
+import * as linesHelper from './helpers/lines';
+import * as labelsHelper from './helpers/labels';
+import * as domHelper from './helpers/dom';
+import * as eventsHelper from './helpers/events';
 import type { DialOption, OneSidedConfig, LabelData, KnobRadii, DialSelectorEventMap } from './types';
 
 /** Parameters for handleAttributeChange */
@@ -89,8 +89,7 @@ class DialSelector extends HTMLElement {
   #options: DialOption[] = [];
   #geometry: GeometryCache | null = null;
 
-  // Lifecycle flags
-  #hasConnected: boolean = false;
+  // Form reset support
   #initialValue: string | null = null;
 
   // Observers (need references for cleanup)
@@ -250,14 +249,12 @@ class DialSelector extends HTMLElement {
   }
 
   connectedCallback(): void {
-    // Avoid re-running init if the element is moved in the DOM
-    if (this.#hasConnected) return;
-    this.#hasConnected = true;
+    // Store the initial value attribute for form reset (only on first connect)
+    if (this.#initialValue === null) {
+      this.#initialValue = this.getAttribute('value');
+    }
 
-    // Store the initial value attribute for form reset
-    this.#initialValue = this.getAttribute('value');
-
-    // Build DOM if shadow root is empty (no content yet)
+    // Build DOM if shadow root is empty (first connect or after framework re-render)
     if (!this.shadowRoot || this.shadowRoot.innerHTML === '') {
       this.buildDOM();
     }
