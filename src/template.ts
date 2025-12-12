@@ -35,7 +35,16 @@ export function getTemplate(): string {
         <svg class="connectors" xmlns="http://www.w3.org/2000/svg"></svg>
         <div class="dial-container">
           <div class="options-container left"></div>
-          <div class="knob-container"></div>
+          <div class="center-container">
+            <div class="spoke-lines-container left">
+              <div class="spoke-lines top"></div>
+              <div class="spoke-lines bottom"></div>
+            </div>
+            <div class="spoke-lines-container right">
+              <div class="spoke-lines top"></div>
+              <div class="spoke-lines bottom"></div>
+            </div>
+          </div>
           <div class="options-container right"></div>
         </div>
       </div>

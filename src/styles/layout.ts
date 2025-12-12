@@ -33,6 +33,23 @@ export function getLayoutStyles(): string {
         height: 100%;
       }
 
+      .spoke-lines-container {
+        border: 2px solid orange;
+        display: flex;
+        flex-direction: column;
+        width: 50%
+      }
+
+      .spoke-lines {
+        height: 50%;
+        flex: 1;
+
+        &.top,
+        &.bottom {
+        border: 2px dashed purple;
+        }
+      }
+
 
       .options-container {
         display: flex;
@@ -43,8 +60,7 @@ export function getLayoutStyles(): string {
         container-type: inline-size;
         container-name: dial-options;
 
-        /* Grow to take space, but be willing to shrink first */
-        flex: 1 1 220px;
+        flex: 1;
 
         /* They can shrink only until their content needs more room */
         min-width: min-content;
@@ -171,6 +187,12 @@ export function getLayoutStyles(): string {
         .dial-layout-overlay .options-container .option .option-image {
         display: none;
       }
+
+    .center-container {
+      border: 2px dotted pink;
+      flex: 1;
+      display: flex;
+    }
 
     .knob-container {
       border: 2px dotted #457b9d;
