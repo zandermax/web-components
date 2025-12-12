@@ -262,4 +262,3 @@ function updateLines(params: UpdateLinesParams): void {
 }
 
 export { updateLines, updateStandardLines, updateSpokesLines };
-

@@ -104,4 +104,3 @@ function isValidIndex(index: number, optionCount: number): boolean {
 
 export { selectByValue, calculateNextIndex, calculatePreviousIndex, setInitialSelection, isValidIndex };
 export type { InitialSelectionResult };
-

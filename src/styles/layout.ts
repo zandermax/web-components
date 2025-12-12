@@ -18,7 +18,7 @@ export function getLayoutStyles(): string {
     }
 
     .dial-layout-overlay {
-      --h: calc(1lh + 4px);
+      --option-height: calc(1lh + 4px);
 
       position: absolute;
       width: max(700px, 100%);
@@ -45,7 +45,7 @@ export function getLayoutStyles(): string {
         height: 50%;
         flex: 1;
         position: relative;
-
+        container-type: inline-size;
 
         &.top .spoke {
           bottom: 0;
@@ -64,32 +64,28 @@ export function getLayoutStyles(): string {
 
         .spoke {
           position: absolute;
-          width: 100%;
-          height: calc(
+          /* Could be 100%, but is used to calculate the angle of each option */
+          width: 100cqi;
+
+          /* Intermediate calculations for readability */
+          --total-gap-space: calc(var(--component-height) - (var(--num-options-this-side) * var(--option-height)));
+          --gap-size: calc(var(--total-gap-space) / var(--num-options-this-side));
+          --step: calc(var(--option-height) + var(--gap-size));
+
+          --h: calc(
             /* edge gap: (H - N*h) / (2N) */
-            ( (var(--component-height) - (var(--num-options-this-side) * var(--h)))
-              / (2 * var(--num-options-this-side)) )
+            (var(--total-gap-space) / (2 * var(--num-options-this-side)))
             +
             /* half item height */
-            ( var(--h) / 2 )
+            (var(--option-height) / 2)
             +
-            /* (index-1) * step, where step = h + (H - N*h)/N */
-            ( (var(--index) - 1) * (
-                var(--h)
-                +
-                ( (var(--component-height) - (var(--num-options-this-side) * var(--h)))
-                  / var(--num-options-this-side) )
-              )
-            )
+            /* (index-1) * step */
+            ((var(--index) - 1) * var(--step))
             +
             /* odd-N correction: mod(N,2) * step/2 */
-            ( mod(var(--num-options-this-side), 2) * (
-                var(--h)
-                +
-                ( (var(--component-height) - (var(--num-options-this-side) * var(--h)))
-                  / var(--num-options-this-side) )
-              ) / 2 )
+            (mod(var(--num-options-this-side), 2) * var(--step) / 2)
           );
+          height: var(--h);
         }
       }
 
@@ -104,8 +100,6 @@ export function getLayoutStyles(): string {
         container-name: dial-options;
 
         flex: 1;
-
-        /* They can shrink only until their content needs more room */
         min-width: min-content;
         white-space: nowrap;
 

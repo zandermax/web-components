@@ -70,4 +70,3 @@ function setupARIAAttributes(element: HTMLElement, defaultLabel: string = 'Dial 
 
 export { handleKeyboardEvent, enableKeyboardNav, disableKeyboardNav, setupARIAAttributes };
 export type { KeyboardEventResult };
-

@@ -35,10 +35,7 @@ type UpdateHeightParams = {
  * @param roundFn - Function to round values
  * @returns Delay result or null
  */
-function computeSelectionDelay(
-  attrValue: string | null,
-  roundFn: (value: number) => number
-): SelectionDelayResult {
+function computeSelectionDelay(attrValue: string | null, roundFn: (value: number) => number): SelectionDelayResult {
   if (attrValue === null) return null;
 
   const ms = parseFloat(attrValue);
@@ -140,4 +137,3 @@ function withoutTransitions(element: HTMLElement, callback: () => void): void {
 
 export { updateSelectionAnimation, updateSelectionDelay, updateHeight, withoutTransitions, computeSelectionDelay };
 export type { SelectionDelayResult };
-
