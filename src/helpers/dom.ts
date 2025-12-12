@@ -446,6 +446,47 @@ function findOptionIndexByValue(options: DialOption[], value: string): number {
   return options.findIndex((opt) => opt.value === value);
 }
 
+/** Cached DOM element references */
+type DOMCache = {
+  knobWrap: HTMLElement | null;
+  selector: HTMLElement | null;
+  leftColumn: HTMLElement | null;
+  rightColumn: HTMLElement | null;
+  lineContainer: SVGElement | null;
+  advanceButton: HTMLElement | null;
+  liveRegion: HTMLElement | null;
+};
+
+/**
+ * Caches DOM element references from shadow root for performance.
+ * @param shadowRoot - The shadow root to query
+ * @returns Cached DOM references
+ */
+function cacheElements(shadowRoot: ShadowRoot | null): DOMCache {
+  if (!shadowRoot) {
+    return {
+      knobWrap: null,
+      selector: null,
+      leftColumn: null,
+      rightColumn: null,
+      lineContainer: null,
+      advanceButton: null,
+      liveRegion: null,
+    };
+  }
+
+  return {
+    knobWrap: shadowRoot.querySelector('.knob-wrap'),
+    selector: shadowRoot.querySelector('.selector'),
+    leftColumn: shadowRoot.querySelector('#leftColumn'),
+    rightColumn: shadowRoot.querySelector('#rightColumn'),
+    lineContainer: shadowRoot.querySelector('#lineContainer'),
+    advanceButton: shadowRoot.querySelector('#advanceButton'),
+    liveRegion: shadowRoot.querySelector('#liveRegion'),
+  };
+}
+
+export type { DOMCache };
 export {
   createLabelElement,
   createLineElement,
@@ -455,4 +496,5 @@ export {
   cleanupEventListeners,
   shouldRebuildFromMutations,
   findOptionIndexByValue,
+  cacheElements,
 };

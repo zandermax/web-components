@@ -121,19 +121,92 @@ function calculateKnobScale({ actualSize, baseSize, roundFn }: CalculateKnobScal
  * @param roundFn - Rounding function
  * @returns Selection delay result or null if no delay attr
  */
-function computeSelectionDelay(
-  delayAttr: string | null,
-  roundFn: (value: number) => number
-): SelectionDelayResult | null {
-  if (!delayAttr) return null;
+/** Parameters for validateContainer */
+type ValidateContainerParams = {
+  element: HTMLElement;
+  dom: {
+    knobWrap: HTMLElement | null;
+    selector: HTMLElement | null;
+  };
+};
 
-  const delayMs = parseFloat(delayAttr);
-  const delaySeconds = roundFn(Math.max(0, delayMs) / 1000);
+/** Parameters for updateDimensionsState */
+type UpdateDimensionsStateParams = {
+  computedStyle: CSSStyleDeclaration;
+  knobWrapActualSize: number;
+  baseKnobSize: number;
+  defaults: {
+    LINE: LineDefaults;
+    HIT_AREA: HitAreaDefaults;
+    KNOB: KnobDefaults;
+  };
+  roundFn: (value: number) => number;
+};
+
+/** Result from updateDimensionsState */
+type DimensionsStateResult = {
+  knobWrapSize: number;
+  scale: number;
+  knobRadii: KnobRadii;
+  horizontalLineLength: number;
+  maxSpokeLength: number;
+  hitAreaStrokeWidth: number;
+  horizontalLineEndOffset: number;
+};
+
+/**
+ * Validates that the container has non-zero width and required DOM elements.
+ * @param params - Parameters for validation
+ * @returns True if container is valid
+ */
+function validateContainer(params: ValidateContainerParams): boolean {
+  const { element, dom } = params;
+  const containerWidth = element.getBoundingClientRect().width;
+  if (containerWidth === 0) {
+    return false;
+  }
+  return !!(dom.knobWrap && dom.selector);
+}
+
+/**
+ * Calculates all dimension state values from CSS and measurements.
+ * @param params - Parameters for calculation
+ * @returns All dimension values
+ */
+function updateDimensionsState(params: UpdateDimensionsStateParams): DimensionsStateResult {
+  const { computedStyle, knobWrapActualSize, baseKnobSize, defaults, roundFn } = params;
+
+  // Calculate scale
+  const { knobWrapSize, scale } = calculateKnobScale({
+    actualSize: knobWrapActualSize,
+    baseSize: baseKnobSize,
+    roundFn,
+  });
+
+  // Parse knob radii
+  const knobRadii = parseKnobRadii({
+    computedStyle,
+    defaults: defaults.KNOB,
+    roundFn,
+  });
+
+  // Parse other dimensions
+  const dims = parseDimensionsFromCSS({
+    computedStyle,
+    defaults: { LINE: defaults.LINE, HIT_AREA: defaults.HIT_AREA },
+    roundFn,
+  });
 
   return {
-    delay: `${delaySeconds}s`,
-    disableTransitions: delayMs === 0,
+    knobWrapSize,
+    scale,
+    knobRadii,
+    horizontalLineLength: dims.horizontalLineLength,
+    maxSpokeLength: dims.maxSpokeLength,
+    hitAreaStrokeWidth: dims.hitAreaStrokeWidth,
+    horizontalLineEndOffset: dims.horizontalLineEndOffset,
   };
 }
 
-export { parseDimensionsFromCSS, parseKnobRadii, calculateKnobScale, computeSelectionDelay };
+export { parseDimensionsFromCSS, parseKnobRadii, calculateKnobScale, validateContainer, updateDimensionsState };
+export type { DimensionsStateResult };
