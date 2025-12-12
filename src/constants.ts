@@ -16,6 +16,8 @@
  *
  * `value`: The initial selected value. Must match the value attribute of a child dial-option element.
  *
+ * `height`: Sets the height of the component. Can be any valid CSS height value. Example: "400px", "50vh", "100%"
+ *
  * Note: For change events, use addEventListener('change', handler) or set the onchange property via JS.
  * The onchange HTML attribute is not supported for security reasons.
  */
@@ -26,6 +28,7 @@ export const ATTRIBUTES = [
   'time-selection-animation',
   'time-selection-delay',
   'value',
+  'height',
 ] as const;
 
 export const FULL_CIRCLE_DEGREES = 360 as const;

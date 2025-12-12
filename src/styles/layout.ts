@@ -18,10 +18,11 @@ export function getLayoutStyles(): string {
     }
 
     .dial-layout-overlay {
+      --h: calc(1lh + 4px);
+
       position: absolute;
       width: max(700px, 100%);
       height: 100%;
-      padding-block: 0.75em;
 
       /* So you can manually test shrinking by dragging the right edge */
       resize: horizontal;
@@ -34,7 +35,7 @@ export function getLayoutStyles(): string {
       }
 
       .spoke-lines-container {
-        border: 2px solid orange;
+
         display: flex;
         flex-direction: column;
         width: 50%
@@ -43,10 +44,52 @@ export function getLayoutStyles(): string {
       .spoke-lines {
         height: 50%;
         flex: 1;
+        position: relative;
 
-        &.top,
-        &.bottom {
-        border: 2px dashed purple;
+
+        &.top .spoke {
+          bottom: 0;
+        }
+
+        &.bottom .spoke {
+          top: 0;
+        }
+      }
+
+      /* Flip the spoke lines for accordant quadrants */
+      .spoke-lines-container.right .spoke-lines.top,
+      .spoke-lines-container.left .spoke-lines.bottom {
+        transform: scaleX(-1);
+      }
+
+        .spoke {
+          position: absolute;
+          width: 100%;
+          height: calc(
+            /* edge gap: (H - N*h) / (2N) */
+            ( (var(--component-height) - (var(--num-options-this-side) * var(--h)))
+              / (2 * var(--num-options-this-side)) )
+            +
+            /* half item height */
+            ( var(--h) / 2 )
+            +
+            /* (index-1) * step, where step = h + (H - N*h)/N */
+            ( (var(--index) - 1) * (
+                var(--h)
+                +
+                ( (var(--component-height) - (var(--num-options-this-side) * var(--h)))
+                  / var(--num-options-this-side) )
+              )
+            )
+            +
+            /* odd-N correction: mod(N,2) * step/2 */
+            ( mod(var(--num-options-this-side), 2) * (
+                var(--h)
+                +
+                ( (var(--component-height) - (var(--num-options-this-side) * var(--h)))
+                  / var(--num-options-this-side) )
+              ) / 2 )
+          );
         }
       }
 
@@ -54,7 +97,7 @@ export function getLayoutStyles(): string {
       .options-container {
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
+        justify-content: space-around;
         border: 2px dashed #e63946;
         /* Make each column a container for inline-size queries */
         container-type: inline-size;
@@ -75,11 +118,11 @@ export function getLayoutStyles(): string {
           display: grid;
 
           &:first-of-type {
-            margin-block-start: 0.75em;
+            /* margin-block-start: 0.75em; */
           }
 
           &:last-of-type {
-            margin-block-end: 0.75em;
+            /* margin-block-end: 0.75em; */
           }
 
           /* Both first and last = only element */
@@ -137,7 +180,7 @@ export function getLayoutStyles(): string {
 
     /* When an options column is narrow enough that items need to stack,
        force a single-column grid and reveal .option-image.bottom. */
-    @container dial-options (max-width: 260px) {
+    @container dial-options (max-width: 230px) {
       /* Match base selector specificity so this wins when stacked */
       .dial-layout-overlay .options-container.left .option,
       .dial-layout-overlay .options-container.right .option {
@@ -189,7 +232,6 @@ export function getLayoutStyles(): string {
       }
 
     .center-container {
-      border: 2px dotted pink;
       flex: 1;
       display: flex;
     }

@@ -37,10 +37,10 @@ export function getVariables(knobWrapSize: number, knobCenter: number): string {
     --hit-area-stroke-width: ${HIT_AREA.STROKE_WIDTH}px;
     --indicator-width: ${INDICATOR.WIDTH}px;
     --component-width: 100%;
-    --component-height: auto;
+    --component-height: 320px;
     --component-min-width: ${COMPONENT.MIN_WIDTH}px;
     --component-min-height: ${COMPONENT.MIN_HEIGHT}px;
     --indicator-angle: 0deg;
+    --option-height: calc(1lh + 4px);
   `;
 }
-

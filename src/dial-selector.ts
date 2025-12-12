@@ -229,6 +229,7 @@ class DialSelector extends HTMLElement {
   initializeAttributes(): void {
     this.updateSelectionAnimation();
     this.updateSelectionDelay();
+    this.updateHeight();
     this.updateDimensions();
   }
 
@@ -564,6 +565,7 @@ class DialSelector extends HTMLElement {
       'time-selection-delay': () => this.updateSelectionDelay(),
       'one-sided': () => this.handleOneSidedChange(),
       value: () => this.handleValueChange(newValue),
+      height: () => this.updateHeight(),
     };
 
     ATTRIBUTE_HANDLERS[name]?.();
@@ -693,6 +695,18 @@ class DialSelector extends HTMLElement {
       this.style.removeProperty('--time-selection-delay');
       this.style.removeProperty('--indicator-transition');
       this.style.removeProperty('--line-transition');
+    }
+  }
+
+  updateHeight(): void {
+    const heightValue = this.getAttribute('height');
+    if (heightValue !== null) {
+      this.style.setProperty('--component-height', heightValue);
+      this.style.setProperty('height', heightValue);
+    } else {
+      // Remove the custom property and height if attribute is removed
+      this.style.removeProperty('--component-height');
+      this.style.removeProperty('height');
     }
   }
 
@@ -929,6 +943,12 @@ class DialSelector extends HTMLElement {
     const rightContainer = overlay.querySelector<HTMLElement>('.options-container.right');
     if (!leftContainer || !rightContainer) return;
 
+    // Add --total-options CSS custom property to dial-container
+    const dialContainer = overlay.querySelector<HTMLElement>('.dial-container');
+    if (dialContainer) {
+      dialContainer.style.setProperty('--total-options', String(this.#options.length));
+    }
+
     // Clear any existing demo content.
     leftContainer.innerHTML = '';
     rightContainer.innerHTML = '';
@@ -955,6 +975,10 @@ class DialSelector extends HTMLElement {
       }
     });
 
+    // Add --num-options CSS custom property to each options-container
+    leftContainer.style.setProperty('--num-options', String(leftIndices.length));
+    rightContainer.style.setProperty('--num-options', String(rightIndices.length));
+
     /**
      * Determines the vertical position class for an option based on its
      * visual position within its column.
@@ -979,7 +1003,149 @@ class DialSelector extends HTMLElement {
       }
     };
 
-    const createOptionElement = (option: DialOption, positionClass: string): HTMLElement => {
+    // Calculate options per quadrant using simple formula (excluding center)
+    // Each side splits evenly top/bottom (with center if odd)
+    const quadrantCounts = {
+      leftTop: Math.floor(leftIndices.length / 2),
+      leftBottom: Math.floor(leftIndices.length / 2),
+      rightTop: Math.floor(rightIndices.length / 2),
+      rightBottom: Math.floor(rightIndices.length / 2),
+    };
+
+    // Set --num-options-this-side for each spoke-lines-container
+    const leftSpokeContainer = overlay.querySelector<HTMLElement>('.spoke-lines-container.left');
+    const rightSpokeContainer = overlay.querySelector<HTMLElement>('.spoke-lines-container.right');
+
+    if (leftSpokeContainer) {
+      leftSpokeContainer.style.setProperty('--num-options-this-side', String(leftIndices.length));
+    }
+    if (rightSpokeContainer) {
+      rightSpokeContainer.style.setProperty('--num-options-this-side', String(rightIndices.length));
+    }
+
+    // Populate spoke-lines with .spoke divs based on quadrant counts
+    const leftTopSpokes = overlay.querySelector<HTMLElement>('.spoke-lines-container.left .spoke-lines.top');
+    const leftBottomSpokes = overlay.querySelector<HTMLElement>('.spoke-lines-container.left .spoke-lines.bottom');
+    const rightTopSpokes = overlay.querySelector<HTMLElement>('.spoke-lines-container.right .spoke-lines.top');
+    const rightBottomSpokes = overlay.querySelector<HTMLElement>('.spoke-lines-container.right .spoke-lines.bottom');
+
+    const createSpokeElement = (index: number): HTMLElement => {
+      const spoke = document.createElement('div');
+      spoke.className = 'spoke';
+      spoke.style.setProperty('--index', String(index));
+
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', '100%');
+      svg.setAttribute('height', '100%');
+      svg.style.position = 'absolute';
+      svg.style.inset = '0';
+      svg.style.pointerEvents = 'none';
+
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', '0');
+      line.setAttribute('y1', '0');
+      line.setAttribute('x2', '100%');
+      line.setAttribute('y2', '100%');
+      line.setAttribute('stroke', 'pink');
+      line.setAttribute('stroke-width', '2');
+
+      svg.appendChild(line);
+      spoke.appendChild(svg);
+
+      return spoke;
+    };
+
+    if (leftBottomSpokes) {
+      let index = 0;
+      leftBottomSpokes.innerHTML = '';
+      for (let i = 0; i < quadrantCounts.leftBottom; i++) {
+        leftBottomSpokes.appendChild(createSpokeElement(++index));
+      }
+    }
+
+    if (leftTopSpokes) {
+      let index = 0;
+      leftTopSpokes.innerHTML = '';
+      for (let i = 0; i < quadrantCounts.leftTop; i++) {
+        leftTopSpokes.appendChild(createSpokeElement(++index));
+      }
+    }
+
+    if (rightTopSpokes) {
+      let index = 0;
+      rightTopSpokes.innerHTML = '';
+      for (let i = 0; i < quadrantCounts.rightTop; i++) {
+        rightTopSpokes.appendChild(createSpokeElement(++index));
+      }
+    }
+
+    if (rightBottomSpokes) {
+      let index = 0;
+      rightBottomSpokes.innerHTML = '';
+      for (let i = 0; i < quadrantCounts.rightBottom; i++) {
+        rightBottomSpokes.appendChild(createSpokeElement(++index));
+      }
+    }
+
+    // Add horizontal center line for odd-numbered sides
+    const addCenterLineToTop = (topSpokes: HTMLElement): void => {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', '100%');
+      svg.setAttribute('height', '2px');
+      svg.style.position = 'absolute';
+      svg.style.bottom = '0';
+      svg.style.left = '0';
+      svg.style.transform = 'translateY(50%)';
+      svg.style.pointerEvents = 'none';
+
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', '0');
+      line.setAttribute('y1', '1');
+      line.setAttribute('x2', '100%');
+      line.setAttribute('y2', '1');
+      line.setAttribute('stroke', 'pink');
+      line.setAttribute('stroke-width', '2');
+
+      svg.appendChild(line);
+      topSpokes.appendChild(svg);
+    };
+
+    if (leftIndices.length % 2 === 1 && leftTopSpokes) {
+      addCenterLineToTop(leftTopSpokes);
+    }
+
+    if (rightIndices.length % 2 === 1 && rightTopSpokes) {
+      addCenterLineToTop(rightTopSpokes);
+    }
+
+    const createHorizontalLineSVG = (): SVGSVGElement => {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', '100%');
+      svg.setAttribute('height', '2px');
+      svg.style.position = 'absolute';
+      svg.style.top = '50%';
+      svg.style.left = '0';
+      svg.style.transform = 'translateY(-50%)';
+      svg.style.pointerEvents = 'none';
+
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', '0');
+      line.setAttribute('y1', '1');
+      line.setAttribute('x2', '100%');
+      line.setAttribute('y2', '1');
+      line.setAttribute('stroke', 'pink');
+      line.setAttribute('stroke-width', '2');
+
+      svg.appendChild(line);
+      return svg;
+    };
+
+    const createOptionElement = (
+      option: DialOption,
+      positionClass: string,
+      optionIndex: number,
+      isLeft: boolean
+    ): HTMLElement => {
       const optionEl = document.createElement('div');
       optionEl.className = `option ${positionClass}`;
 
@@ -989,9 +1155,19 @@ class DialSelector extends HTMLElement {
 
       const imageElTop = document.createElement('div');
       imageElTop.className = 'option-image top';
+      imageElTop.style.position = 'relative';
+      // Don't show line in top image when one-sided on the left
+      if (oneSided !== 'left') {
+        imageElTop.appendChild(createHorizontalLineSVG());
+      }
 
       const imageElBottom = document.createElement('div');
       imageElBottom.className = 'option-image bottom';
+      imageElBottom.style.position = 'relative';
+      // Don't show line in bottom image when one-sided on the right
+      if (oneSided !== 'right') {
+        imageElBottom.appendChild(createHorizontalLineSVG());
+      }
 
       optionEl.appendChild(imageElTop);
       optionEl.appendChild(textEl);
@@ -1004,7 +1180,7 @@ class DialSelector extends HTMLElement {
     rightIndices.forEach((optionIndex, visualPosition) => {
       const option = this.#options[optionIndex];
       const positionClass = getVerticalPositionClass(visualPosition, rightIndices.length);
-      rightContainer.appendChild(createOptionElement(option, positionClass));
+      rightContainer.appendChild(createOptionElement(option, positionClass, optionIndex, false));
     });
 
     // Left column: "starts at bottom" – the first logical option on the left
@@ -1018,7 +1194,7 @@ class DialSelector extends HTMLElement {
       // Visual position: first appended (i = length-1) is at top (visualPosition 0)
       const visualPosition = leftIndices.length - 1 - i;
       const positionClass = getVerticalPositionClass(visualPosition, leftIndices.length);
-      leftContainer.appendChild(createOptionElement(option, positionClass));
+      leftContainer.appendChild(createOptionElement(option, positionClass, optionIndex, true));
     }
   }
 
