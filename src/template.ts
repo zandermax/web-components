@@ -32,10 +32,12 @@ export function getTemplate(): string {
       </div>
 
       <div class="dial-layout-overlay" aria-hidden="true">
-        <svg class="connectors" xmlns="http://www.w3.org/2000/svg"></svg>
         <div class="dial-container">
           <div class="options-container left"></div>
           <div class="center-container">
+            <div class="knob-container">
+              <div class="knob-temp">Knob</div>
+            </div>
             <div class="spoke-lines-container left">
               <div class="spoke-lines top"></div>
               <div class="spoke-lines bottom"></div>
