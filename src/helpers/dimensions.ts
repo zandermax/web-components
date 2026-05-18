@@ -55,7 +55,7 @@ function parseCSSValue(
   computedStyle: CSSStyleDeclaration,
   propertyName: string,
   fallback: number,
-  roundFn: (value: number) => number
+  roundFn: (value: number) => number,
 ): number {
   const rawValue = computedStyle.getPropertyValue(propertyName).trim();
   const parsed = parseFloat(rawValue);
@@ -73,20 +73,20 @@ function parseDimensionsFromCSS({ computedStyle, defaults, roundFn }: ParseDimen
       computedStyle,
       '--horizontal-line-length',
       defaults.LINE.HORIZONTAL_LENGTH,
-      roundFn
+      roundFn,
     ),
     maxSpokeLength: parseCSSValue(computedStyle, '--max-spoke-length', defaults.LINE.MAX_SPOKE_LENGTH, roundFn),
     hitAreaStrokeWidth: parseCSSValue(
       computedStyle,
       '--hit-area-stroke-width',
       defaults.HIT_AREA.STROKE_WIDTH,
-      roundFn
+      roundFn,
     ),
     horizontalLineEndOffset: parseCSSValue(
       computedStyle,
       '--horizontal-line-end-offset',
       defaults.LINE.HORIZONTAL_END_OFFSET,
-      roundFn
+      roundFn,
     ),
   };
 }

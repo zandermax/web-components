@@ -136,7 +136,7 @@ function calculateColumnPositions(labelDataArray: LabelGeometry[], horizontalLin
           rightColumnX: data.isLeft ? acc.rightColumnX : Math.max(acc.rightColumnX, defaultEndX),
         };
       },
-      { leftColumnX: Infinity, rightColumnX: -Infinity }
+      { leftColumnX: Infinity, rightColumnX: -Infinity },
     );
 }
 

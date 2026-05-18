@@ -886,6 +886,12 @@ class DialSelector extends HTMLElement {
     // Update CSS indicator angle
     selectorHelper.updateIndicatorAngle(this, this.#currentAngle, mathHelper.roundToThousandths);
 
+    // Update selected index on overlay for CSS angle calculation (1-based to match .spoke elements)
+    const overlay = this.shadowRoot?.querySelector<HTMLElement>('.dial-layout-overlay');
+    if (overlay) {
+      overlay.style.setProperty('--selected-index', String(this.#currentIndex + 1));
+    }
+
     // Update active states
     domHelper.updateActiveStates({
       labels: this.#labels,

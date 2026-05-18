@@ -3,6 +3,24 @@
  */
 export function getLayoutStyles(): string {
   return `
+    @property --w {
+      syntax: "<length>";
+      inherits: true;
+      initial-value: 0px;
+    }
+
+    @property --h {
+      syntax: "<length>";
+      inherits: true;
+      initial-value: 0px;
+    }
+
+    @property --angle {
+      syntax: "<angle>";
+      inherits: true;
+      initial-value: 0deg;
+    }
+
     .selector {
       position: relative;
       display: grid;
@@ -18,15 +36,16 @@ export function getLayoutStyles(): string {
     }
 
     .dial-layout-overlay {
-      --option-height: calc(1lh + 4px);
+      --selected-index: 1;
+      --left-count: 2;
+      --right-count: 2;
+      --left-is-odd: 0;
+      --right-is-odd: 0;
 
       position: absolute;
-      width: max(700px, 100%);
+      width: 100%;
       height: 100%;
 
-      /* So you can manually test shrinking by dragging the right edge */
-      resize: horizontal;
-      overflow: auto;
       z-index: 1000;
 
       .dial-container {
@@ -35,7 +54,6 @@ export function getLayoutStyles(): string {
       }
 
       .spoke-lines-container {
-
         display: flex;
         flex-direction: column;
         width: 50%
@@ -65,7 +83,8 @@ export function getLayoutStyles(): string {
         .spoke {
           position: absolute;
           /* Could be 100%, but is used to calculate the angle of each option */
-          width: 100cqi;
+          --w: 100cqi;
+          width: var(--w);
 
           /* Intermediate calculations for readability */
           --total-gap-space: calc(var(--component-height) - (var(--num-options-this-side) * var(--option-height)));
@@ -95,8 +114,6 @@ export function getLayoutStyles(): string {
         flex-direction: column;
         justify-content: space-around;
         border: 2px dashed #e63946;
-        /* Make each column a container for inline-size queries */
-        container-type: inline-size;
         container-name: dial-options;
 
         flex: 1;
@@ -240,12 +257,72 @@ export function getLayoutStyles(): string {
       .knob-temp {
         border: 2px dotted #457b9d;
         position: absolute;
-        width: calc(100% * 2 / 3);
+        outline-width: 1cqi;
+
+        --w: calc(100cqi * 2 / 3);
+        /* width: var(--w); */
         aspect-ratio: 1 / 1;
 
         top: 50%;
         left: 50%;
-        transform: translate(-50%, -50%);
+
+        /* 1-based indexing assumed */
+        --is-left: clamp(0, 1, calc(var(--left-count) - var(--selected-index) + 1));
+        --is-right: clamp(0, 1, calc(var(--selected-index) - var(--left-count)));
+
+        --num-options-active-side: calc(var(--is-left) * var(--left-count) + var(--is-right) * var(--right-count));
+        --N-safe: max(1, var(--num-options-active-side));
+
+        --total-gap-space: calc(var(--component-height) - (var(--num-options-active-side) * var(--option-height)));
+        --gap-size: calc(var(--total-gap-space) / var(--N-safe));
+        --step: calc(var(--option-height) + var(--gap-size));
+
+        --h: calc(
+          (var(--total-gap-space) / (2 * var(--N-safe)))
+          + (var(--option-height) / 2)
+          + ((var(--selected-index) - 1) * var(--step))
+          + ((var(--is-left) * var(--left-is-odd) + var(--is-right) * var(--right-is-odd)) * var(--step) / 2)
+        );
+
+        height: var(--h);
+        /* --angle: atan2(var(--h), var(--w)); */
+        --angle: atan2(var(--h), 1);
+        transform: translate(-50%, -50%) rotate(var(--angle));
+        transform-origin: center center;
+
+        &::before {
+          content: 'Angle: ' var(--angle);
+          position: absolute;
+          top: 10px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: rgba(255, 255, 255, 0.9);
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          color: #333;
+          white-space: nowrap;
+          z-index: 10;
+        }
+
+        &::after {
+          content: '';
+          position: absolute;
+          width: 8px;
+          height: 50%;
+          top: 50%;
+          left: 50%;
+          transform: translateX(-50%);
+          background: teal;
+          clip-path: polygon(
+            /* Shaft of arrow */
+            40% 0, 60% 0, 60% 85%,
+            /* Arrowhead */
+            100% 85%, 50% 100%, 0% 85%,
+            /* Back to shaft */
+            40% 85%
+          );
+        }
       }
     }
 

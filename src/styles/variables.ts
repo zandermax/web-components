@@ -41,6 +41,6 @@ export function getVariables(knobWrapSize: number, knobCenter: number): string {
     --component-min-width: ${COMPONENT.MIN_WIDTH}px;
     --component-min-height: ${COMPONENT.MIN_HEIGHT}px;
     --indicator-angle: 0deg;
-    --option-height: calc(1lh + 4px);
+    --option-height: 24px;
   `;
 }

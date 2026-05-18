@@ -17,6 +17,8 @@ type CreateSpokeElementParams = {
   index: number;
   color?: string;
   strokeWidth?: string;
+  endX?: string;
+  endY?: string;
 };
 
 /** Parameters for createOptionElement */
@@ -45,6 +47,8 @@ function createHorizontalLineSVG(params: HorizontalLineSVGParams = {}): SVGSVGEl
   const { color = 'pink', strokeWidth = '2' } = params;
 
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 100 2');
+  svg.setAttribute('preserveAspectRatio', 'none');
   svg.setAttribute('width', '100%');
   svg.setAttribute('height', '2px');
   svg.style.position = 'absolute';
@@ -56,10 +60,11 @@ function createHorizontalLineSVG(params: HorizontalLineSVGParams = {}): SVGSVGEl
   const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
   line.setAttribute('x1', '0');
   line.setAttribute('y1', '1');
-  line.setAttribute('x2', '100%');
+  line.setAttribute('x2', '100');
   line.setAttribute('y2', '1');
   line.setAttribute('stroke', color);
   line.setAttribute('stroke-width', strokeWidth);
+  line.setAttribute('vector-effect', 'non-scaling-stroke');
 
   svg.appendChild(line);
   return svg;
@@ -71,13 +76,15 @@ function createHorizontalLineSVG(params: HorizontalLineSVGParams = {}): SVGSVGEl
  * @returns Spoke element
  */
 function createSpokeElement(params: CreateSpokeElementParams): HTMLElement {
-  const { index, color = 'pink', strokeWidth = '2' } = params;
+  const { index, color = 'pink', strokeWidth = '2', endX = '100', endY = '100' } = params;
 
   const spoke = document.createElement('div');
   spoke.className = 'spoke';
   spoke.style.setProperty('--index', String(index));
 
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
   svg.setAttribute('width', '100%');
   svg.setAttribute('height', '100%');
   svg.style.position = 'absolute';
@@ -87,10 +94,11 @@ function createSpokeElement(params: CreateSpokeElementParams): HTMLElement {
   const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
   line.setAttribute('x1', '0');
   line.setAttribute('y1', '0');
-  line.setAttribute('x2', '100%');
-  line.setAttribute('y2', '100%');
+  line.setAttribute('x2', endX);
+  line.setAttribute('y2', endY);
   line.setAttribute('stroke', color);
   line.setAttribute('stroke-width', strokeWidth);
+  line.setAttribute('vector-effect', 'non-scaling-stroke');
 
   svg.appendChild(line);
   spoke.appendChild(svg);
@@ -283,6 +291,18 @@ function rebuildDialLayoutOverlay(params: RebuildDialLayoutOverlayParams): void 
       rightIndices.push(index);
     }
   });
+
+  // Compute odd/even flags for each side (avoid CSS mod() function)
+  const leftIsOdd = leftIndices.length % 2;
+  const rightIsOdd = rightIndices.length % 2;
+
+  // Set CSS custom properties on overlay
+  if (overlay instanceof HTMLElement) {
+    overlay.style.setProperty('--left-count', String(leftIndices.length));
+    overlay.style.setProperty('--right-count', String(rightIndices.length));
+    overlay.style.setProperty('--left-is-odd', String(leftIsOdd));
+    overlay.style.setProperty('--right-is-odd', String(rightIsOdd));
+  }
 
   // Add --num-options CSS custom property to each options-container
   leftContainer.style.setProperty('--num-options', String(leftIndices.length));
